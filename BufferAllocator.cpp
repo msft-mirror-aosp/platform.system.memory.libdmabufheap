@@ -34,6 +34,15 @@
 
 static constexpr char kDmaHeapRoot[] = "/dev/dma_heap/";
 static constexpr char kIonDevice[] = "/dev/ion";
+static constexpr char kDmabufSystemHeapName[] = "system";
+static constexpr char kIonSystemHeapName[] = "ion_system_heap";
+
+void BufferAllocator::LogInterface(const std::string& interface) {
+    if (!logged_interface_) {
+        LOG(INFO) << "Using : " << interface;
+        logged_interface_ = true;
+    }
+}
 
 int BufferAllocator::GetDmabufHeapFd(const std::string& heap_name) {
     /* check if we have this dmabuf heap open and if so return the fd for it. */
@@ -62,7 +71,8 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
 void BufferAllocator::QueryIonHeaps() {
     uses_legacy_ion_iface_ = ion_is_legacy(ion_fd_);
     if (uses_legacy_ion_iface_) {
-        LOG(INFO) << "Using legacy ION heaps";
+        LogInterface("Legacy ion heaps");
+        MapNameToIonMask(kDmabufSystemHeapName, ION_HEAP_SYSTEM_MASK);
         return;
     }
 
@@ -76,7 +86,13 @@ void BufferAllocator::QueryIonHeaps() {
     // Abort if heap query fails
     CHECK(ret == 0)
             << "Non-legacy ION implementation must support heap information queries";
-    LOG(INFO) << "Using non-legacy ION heaps";
+    LogInterface("Non-legacy ION heaps");
+
+    /*
+     * No error checking here, it is possible that devices may have used another name for
+     * the ion system heap.
+     */
+    MapNameToIonName(kDmabufSystemHeapName, kIonSystemHeapName);
 }
 
 BufferAllocator::BufferAllocator() {
@@ -90,6 +106,58 @@ BufferAllocator::BufferAllocator() {
         CHECK(ion_fd_ >= 0) << "Either dmabuf heaps or ion must be supported";
         QueryIonHeaps();
     } else {
-        LOG(INFO) << "Using DMABUF Heaps";
+        LogInterface("DMABUF Heaps");
     }
+}
+
+int BufferAllocator::MapNameToIonMask(const std::string& heap_name, unsigned int ion_heap_mask,
+                                      unsigned int ion_heap_flags) {
+    if (!ion_heap_mask)
+        return -EINVAL;
+    IonHeapConfig heap_config = { ion_heap_mask, ion_heap_flags };
+    heap_name_to_config_[heap_name] = heap_config;
+    return 0;
+}
+
+int BufferAllocator::GetIonHeapIdByName(const std::string& heap_name, unsigned int* heap_id) {
+    for (auto& it : ion_heap_info_) {
+        if (heap_name == it.name) {
+            *heap_id = it.heap_id;
+            return 0;
+        }
+    }
+
+    LOG(ERROR) << "No ion heap of name " << heap_name << " exists";
+    return -EINVAL;
+}
+
+int BufferAllocator::MapNameToIonName(const std::string& heap_name,
+                                      const std::string& ion_heap_name,
+                                      unsigned int ion_heap_flags) {
+    unsigned int ion_heap_id = 0;
+    auto ret = GetIonHeapIdByName(ion_heap_name, &ion_heap_id);
+    if (ret < 0)
+        return ret;
+
+    unsigned int ion_heap_mask = 1 << ion_heap_id;
+    IonHeapConfig heap_config = { ion_heap_mask, ion_heap_flags };
+    heap_name_to_config_[heap_name] = heap_config;
+
+    return 0;
+}
+
+int BufferAllocator::MapNameToIonHeap(const std::string& heap_name,
+                                      const std::string& ion_heap_name,
+                                      unsigned int ion_heap_flags,
+                                      unsigned int legacy_ion_heap_mask,
+                                      unsigned int legacy_ion_heap_flags) {
+    int ret = 0;
+
+    if (uses_legacy_ion_iface_) {
+        ret = MapNameToIonMask(heap_name, legacy_ion_heap_mask, legacy_ion_heap_flags);
+    } else if (!DmabufHeapsSupported() && !ion_heap_name.empty()) {
+        ret = MapNameToIonName(heap_name, ion_heap_name, ion_heap_flags);
+    }
+
+    return ret;
 }

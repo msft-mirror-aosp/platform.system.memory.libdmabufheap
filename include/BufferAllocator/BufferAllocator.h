@@ -28,7 +28,7 @@
 
 #include <android-base/unique_fd.h>
 
-class BufferAllocator{
+class BufferAllocator {
   public:
     BufferAllocator();
     ~BufferAllocator() {}
@@ -37,10 +37,48 @@ class BufferAllocator{
     BufferAllocator(const BufferAllocator&) = delete;
     BufferAllocator& operator=(const BufferAllocator&) = delete;
 
+    /**
+     * Maps a dmabuf heap to an equivalent ion heap configuration. This method is required since
+     * dmabuf heaps do not support heap flags. This means that a single ion heap may encompass the
+     * functionality of multiple dmabuf heaps by using heap flags. This method will check the
+     * interface being used and only create the required mappings. For example,
+     * if the interface being used is dmabuf heaps, the method will not do
+     * anything. If the interface being used is non-legacy ion, the mapping from
+     * dmabuf heap name to non-legacy ion heap name will be created and the
+     * legacy parameters will be ignored.
+     * The method can be deprecated once all devices have
+     * migrated to dmabuf heaps from ion. Returns an error code when the
+     * interface used is non-legacy ion and the @ion_heap_name parameter is
+     * invalid or if the interface used is legacy ion and @legacy_ion_heap_mask
+     * is invalid(0);
+     * @heap_name: dmabuf heap name.
+     * @ion_heap_name: name of the equivalent ion heap.
+     * @ion_heap_flags: flags to be passed to the ion heap @ion_heap_name for it to function
+     * equivalently to the dmabuf heap @heap_name.
+     * @legacy_ion_heap_mask: heap mask for the equivalent legacy ion heap.
+     * @legacy_ion_heap_flags: flags to be passed to the legacy ion heap for it
+     * to function equivalently to dmabuf heap @heap_name..
+     */
+    int MapNameToIonHeap(const std::string& heap_name, const std::string& ion_heap_name,
+                         unsigned int ion_heap_flags = 0, unsigned int legacy_ion_heap_mask = 0,
+                         unsigned int legacy_ion_heap_flags = 0);
+
   private:
     int OpenDmabufHeap(const std::string& name);
     void QueryIonHeaps();
     int GetDmabufHeapFd(const std::string& name);
+    bool DmabufHeapsSupported() { return !dmabuf_heap_fds_.empty(); }
+    int GetIonHeapIdByName(const std::string& heap_name, unsigned int* heap_id);
+    int MapNameToIonMask(const std::string& heap_name, unsigned int ion_heap_mask,
+                         unsigned int ion_heap_flags = 0);
+    int MapNameToIonName(const std::string& heap_name, const std::string& ion_heap_name,
+                         unsigned int ion_heap_flags = 0);
+    void LogInterface(const std::string& interface);
+
+    struct IonHeapConfig {
+        unsigned int mask;
+        unsigned int flags;
+    };
 
     /* Stores all open dmabuf_heap handles. */
     std::unordered_map<std::string, android::base::unique_fd> dmabuf_heap_fds_;
@@ -61,4 +99,7 @@ class BufferAllocator{
      */
     bool uses_legacy_ion_iface_ = false;
     std::vector<struct ion_heap_data> ion_heap_info_;
+    inline static bool logged_interface_ = false;
+    /* stores a map of dmabuf heap names to equivalent ion heap configurations. */
+    std::unordered_map<std::string, struct IonHeapConfig> heap_name_to_config_;
 };
