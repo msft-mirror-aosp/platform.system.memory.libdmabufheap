@@ -187,6 +187,25 @@ int BufferAllocator::GetIonConfig(const std::string& heap_name, IonHeapConfig& h
     return ret;
 }
 
+int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len) {
+    int fd = OpenDmabufHeap(heap_name);
+    if (fd < 0) {
+        LOG(ERROR) << "Unsupported dmabuf heap: " << heap_name << " error: " << fd;
+        return fd;
+    }
+
+    struct dma_heap_allocation_data heap_data{
+        .len = len,  // length of data to be allocated in bytes
+        .fd_flags = O_RDWR | O_CLOEXEC,  // permissions for the memory to be allocated
+    };
+
+    auto ret = TEMP_FAILURE_RETRY(ioctl(fd, DMA_HEAP_IOCTL_ALLOC, &heap_data));
+    if (ret < 0)
+        return ret;
+
+    return heap_data.fd;
+}
+
 int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
     IonHeapConfig heap_config;
     auto ret = GetIonConfig(heap_name, heap_config);
@@ -202,4 +221,12 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned
         return ret;
     }
     return alloc_fd;
+}
+
+int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+    if (DmabufHeapsSupported()) {
+        return DmabufAlloc(heap_name, len);
+    }
+
+    return IonAlloc(heap_name, len, heap_flags);
 }

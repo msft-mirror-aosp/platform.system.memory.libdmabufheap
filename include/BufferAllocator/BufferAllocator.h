@@ -63,6 +63,20 @@ class BufferAllocator {
                          unsigned int ion_heap_flags = 0, unsigned int legacy_ion_heap_mask = 0,
                          unsigned int legacy_ion_heap_flags = 0);
 
+    /* *
+     * Returns a dmabuf fd if the allocation in one of the specified heaps is successful and
+     * an error code otherwise. If dmabuf heaps are supported, tries to allocate in the
+     * specified dmabuf heap. If dmabuf heaps are not supported and if ion_fd is a valid fd,
+     * go through saved heap data to find a heap ID/mask to match the specified heap names and
+     * allocate memory as per the specified parameters. For vendor defined heaps with a legacy
+     * ION interface(no heap query support), MapNameToIonMask() must be called prior to invocation
+     * of Alloc() to map a heap name to an equivalent heap mask and heap flag configuration.
+     * @heap_name: name of the heap to allocate in.
+     * @len: size of the allocation.
+     * @heap_flags: flags passed to heap.
+     */
+    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+
   private:
     int OpenDmabufHeap(const std::string& name);
     void QueryIonHeaps();
@@ -75,6 +89,7 @@ class BufferAllocator {
                          unsigned int ion_heap_flags = 0);
     void LogInterface(const std::string& interface);
     int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+    int DmabufAlloc(const std::string& heap_name, size_t len);
 
     struct IonHeapConfig {
         unsigned int mask;
