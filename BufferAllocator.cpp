@@ -34,7 +34,6 @@
 
 static constexpr char kDmaHeapRoot[] = "/dev/dma_heap/";
 static constexpr char kIonDevice[] = "/dev/ion";
-static constexpr char kDmabufSystemHeapName[] = "system";
 static constexpr char kIonSystemHeapName[] = "ion_system_heap";
 
 void BufferAllocator::LogInterface(const std::string& interface) {

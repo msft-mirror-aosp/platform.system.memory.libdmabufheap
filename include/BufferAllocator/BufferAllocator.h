@@ -28,6 +28,8 @@
 
 #include <android-base/unique_fd.h>
 
+static constexpr char kDmabufSystemHeapName[] = "system";
+
 class BufferAllocator {
   public:
     BufferAllocator();
