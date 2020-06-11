@@ -161,3 +161,45 @@ int BufferAllocator::MapNameToIonHeap(const std::string& heap_name,
 
     return ret;
 }
+
+int BufferAllocator::GetIonConfig(const std::string& heap_name, IonHeapConfig& heap_config) {
+    int ret = 0;
+    auto it = heap_name_to_config_.find(heap_name);
+    if (it != heap_name_to_config_.end()) {
+        heap_config = it->second;
+    } else {
+        if (uses_legacy_ion_iface_) {
+            ret = -EINVAL;
+        } else {
+            unsigned int heap_id;
+            ret = GetIonHeapIdByName(heap_name, &heap_id);
+            if (ret == 0) {
+                heap_config.mask = 1 << heap_id;
+                heap_config.flags = 0;
+                /* save it so that this lookup does not need to happen again */
+                heap_name_to_config_[heap_name] = heap_config;
+            }
+        }
+    }
+
+    if (ret)
+        LOG(ERROR) << "No ion heap of name " << heap_name << " exists";
+    return ret;
+}
+
+int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+    IonHeapConfig heap_config;
+    auto ret = GetIonConfig(heap_name, heap_config);
+    if (ret)
+        return ret;
+
+    int alloc_fd = -1;
+    unsigned int flags = heap_config.flags | heap_flags;
+    ret = ion_alloc_fd(ion_fd_, len, 0, heap_config.mask, flags, &alloc_fd);
+    if (ret) {
+        PLOG(ERROR) << "allocation fails for ion heap with mask: " << heap_config.mask
+                    << " and flags: " << flags;
+        return ret;
+    }
+    return alloc_fd;
+}

@@ -74,11 +74,13 @@ class BufferAllocator {
     int MapNameToIonName(const std::string& heap_name, const std::string& ion_heap_name,
                          unsigned int ion_heap_flags = 0);
     void LogInterface(const std::string& interface);
+    int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
 
     struct IonHeapConfig {
         unsigned int mask;
         unsigned int flags;
     };
+    int GetIonConfig(const std::string& heap_name, IonHeapConfig& heap_config);
 
     /* Stores all open dmabuf_heap handles. */
     std::unordered_map<std::string, android::base::unique_fd> dmabuf_heap_fds_;
