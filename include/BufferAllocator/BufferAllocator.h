@@ -16,19 +16,20 @@
 
 #pragma once
 
+#include <BufferAllocator/dmabufheap-defs.h>
+
+#include <android-base/unique_fd.h>
 #include <linux/ion_4.12.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <android-base/unique_fd.h>
-
-static constexpr char kDmabufSystemHeapName[] = "system";
 
 class BufferAllocator {
   public:
@@ -79,6 +80,53 @@ class BufferAllocator {
      */
     int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
 
+    /**
+     * Optional custom callback for legacy ion implementation that can be specified as a
+     * parameter to CpuSyncStart() and CpuSyncEnd(). It takes an fd to /dev/ion
+     * as its argument. The callback MUST NOT assume ownership of the fd.
+     * The fd will be closed once the callback returns.
+     * If specified, the callback will be used for syncing a shared dmabuf fd with
+     * memory(instead of ion_sync_fd()). It will be invoked with a dup of
+     * ion_fd_ as its argument. Return 0 on success and error code otherwise
+     * which will become the return value for CpuSyncStart() and CpuSyncEnd().
+     */
+    typedef std::function<int(int)> CustomCpuSyncLegacyIon;
+
+    /**
+     * Must be invoked before CPU access of the allocated memory.
+     * For a legacy ion interface, syncs a shared dmabuf fd with memory either using
+     * ION_IOC_SYNC ioctl or using callback @legacy_ion_cpu_sync if specified. For
+     * non-legacy ION and dmabuf heap interfaces, DMA_BUF_IOCTL_SYNC is used.
+     * @fd: dmabuf fd
+     * @sync_type: specifies if the sync is for read, write or read/write.
+     * @legacy_ion_cpu_sync: optional callback for legacy ion interfaces. If
+     * specified, will be invoked instead of ion_sync_fd()
+     * to sync dmabuf_fd with memory. The paremeter will be ignored if the interface being
+     * used is not legacy ion.
+     *
+     * Returns 0  on success and an error code otherwise.
+     */
+    int CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type = kSyncRead,
+                     const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync = nullptr);
+
+    /**
+     * Must be invoked once CPU is done accessing the allocated memory.
+     * For a legacy ion interface, syncs a shared dmabuf fd with memory using
+     * either ION_IOC_SYNC ioctl or using callback @legacy_ion_cpu_sync if
+     * specified. For non-legacy ION and dmabuf heap interfaces,
+     * DMA_BUF_IOCTL_SYNC is used. The type of sync(read, write or rw) done will
+     * the same with which CpuSyncStart() was invoked.
+     * @fd: dmabuf fd
+     * @legacy_ion_cpu_sync: optional callback for legacy ion interfaces. If
+     * specified, will be invoked instead of ion_sync_fd with a dup of ion_fd_ as its
+     * argument. The parameter will be ignored if the interface being used is
+     * not legacy ion.
+     *
+     * Returns 0 on success and an error code otherwise.
+     */
+    int CpuSyncEnd(unsigned int dmabuf_fd,
+                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync = nullptr);
+
   private:
     int OpenDmabufHeap(const std::string& name);
     void QueryIonHeaps();
@@ -98,6 +146,10 @@ class BufferAllocator {
         unsigned int flags;
     };
     int GetIonConfig(const std::string& heap_name, IonHeapConfig& heap_config);
+    int LegacyIonCpuSync(unsigned int fd, const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom);
+    int DmabufFdSync(unsigned int dmabuf_fd, bool start, SyncType sync_type);
+    int DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_type,
+               const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom);
 
     /* Stores all open dmabuf_heap handles. */
     std::unordered_map<std::string, android::base::unique_fd> dmabuf_heap_fds_;
@@ -121,4 +173,9 @@ class BufferAllocator {
     inline static bool logged_interface_ = false;
     /* stores a map of dmabuf heap names to equivalent ion heap configurations. */
     std::unordered_map<std::string, struct IonHeapConfig> heap_name_to_config_;
+    /**
+     * stores a map of dmabuf fds to the type of their last known CpuSyncStart()
+     * call. The entry will be cleared when CpuSyncEnd() is invoked.
+     */
+    std::unordered_map<int, SyncType> fd_last_sync_type_;
 };

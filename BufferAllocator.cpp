@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ion/ion.h>
+#include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <linux/ion_4.12.h>
 #include <stdlib.h>
@@ -228,4 +229,72 @@ int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned in
     }
 
     return IonAlloc(heap_name, len, heap_flags);
+}
+
+int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
+                                      const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+    if (!legacy_ion_cpu_sync_custom)
+        return ion_sync_fd(ion_fd_, dmabuf_fd);
+
+    // dup ion_fd_ so that we retain its ownership.
+    int new_ion_fd = TEMP_FAILURE_RETRY(dup(ion_fd_.get()));
+    if (new_ion_fd < 0) {
+        PLOG(ERROR) << "Unable to dup ion fd. error: " << new_ion_fd;
+        return new_ion_fd;
+    }
+
+    int ret = legacy_ion_cpu_sync_custom(new_ion_fd);
+
+    close(new_ion_fd);
+    return ret;
+}
+
+int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_type,
+                            const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+    if (uses_legacy_ion_iface_) {
+        return LegacyIonCpuSync(dmabuf_fd, legacy_ion_cpu_sync_custom);
+    }
+
+    struct dma_buf_sync sync = {
+        .flags = (start ? DMA_BUF_SYNC_START : DMA_BUF_SYNC_END) |
+                static_cast<uint64_t>(sync_type),
+    };
+    return TEMP_FAILURE_RETRY(ioctl(dmabuf_fd, DMA_BUF_IOCTL_SYNC, &sync));
+}
+
+int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
+                                  const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+    auto it = fd_last_sync_type_.find(dmabuf_fd);
+    if (it != fd_last_sync_type_.end()) {
+        LOG(ERROR) << "CpuSyncEnd needs to be invoked for this fd first";
+        return -EINVAL;
+    }
+
+    int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom);
+
+    if (ret) {
+        PLOG(ERROR) << "CpuSyncStart() failure";
+    } else {
+        fd_last_sync_type_[dmabuf_fd] = sync_type;
+    }
+    return ret;
+}
+
+int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
+                                const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+    auto it = fd_last_sync_type_.find(dmabuf_fd);
+    if (it == fd_last_sync_type_.end()) {
+        LOG(ERROR) << "CpuSyncStart() must be called before CpuSyncEnd()";
+        return -EINVAL;
+    }
+
+    int ret = DoSync(dmabuf_fd, false /* start */, it->second /* sync_type */,
+                     legacy_ion_cpu_sync_custom);
+    if (ret) {
+        PLOG(ERROR) << "CpuSyncEnd() failure";
+    } else {
+        fd_last_sync_type_.erase(it);
+    }
+
+    return ret;
 }
