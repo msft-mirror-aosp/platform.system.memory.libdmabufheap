@@ -17,6 +17,7 @@
 cc_library {
    srcs: [
         "BufferAllocator.cpp",
+        "BufferAllocatorWrapper.cpp",
      ],
     name: "libdmabufheap",
     cflags: [
