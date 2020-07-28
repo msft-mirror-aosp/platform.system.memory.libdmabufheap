@@ -98,7 +98,8 @@ void BufferAllocator::QueryIonHeaps() {
 BufferAllocator::BufferAllocator() {
     if (OpenDmabufHeap("system") < 0) {
         /* Since dmabuf heaps are not supported, try opening /dev/ion. */
-        ion_fd_.reset(TEMP_FAILURE_RETRY(open(kIonDevice, O_RDWR | O_CLOEXEC)));
+        ion_fd_.reset(TEMP_FAILURE_RETRY(open(kIonDevice, O_RDONLY| O_CLOEXEC)));
+
         /*
          * If ion_fd_ is invalid, then neither dmabuf heaps nor ion is supported
          * which is an invalid configuration. Abort in this case.
