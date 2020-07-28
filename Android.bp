@@ -36,4 +36,7 @@ cc_library {
         "libutils",
         "liblog",
     ],
+    export_static_lib_headers: [
+        "libion",
+    ],
 }
