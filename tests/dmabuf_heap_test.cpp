@@ -17,7 +17,7 @@
 #include <BufferAllocator/BufferAllocator.h>
 #include "dmabuf_heap_test.h"
 
-#include <ion/ion.h>
+#include <linux/ion.h>
 #include <sys/mman.h>
 
 #include <gtest/gtest.h>
