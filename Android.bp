@@ -20,6 +20,12 @@ cc_library {
         "BufferAllocatorWrapper.cpp",
      ],
     name: "libdmabufheap",
+    vendor_available: true,
+    apex_available: [
+        "//apex_available:platform",
+        "//apex_available:anyapex",
+    ],
+    min_sdk_version: "29",
     cflags: [
         "-Wall",
         "-Werror",
@@ -34,6 +40,8 @@ cc_library {
         "libbase",
         "libion",
         "libutils",
+    ],
+    shared_libs: [
         "liblog",
     ],
     export_static_lib_headers: [
