@@ -38,10 +38,12 @@ int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* he
                                unsigned int legacy_ion_heap_mask, unsigned legacy_ion_heap_flags);
 
 int DmabufHeapCpuSyncStart(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                           SyncType sync_type, int (*legacy_ion_cpu_sync)(int));
+                           SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void *),
+                           void *legacy_ion_custom_data);
 
 int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                         int (*legacy_ion_cpu_sync)(int));
+                         int (*legacy_ion_cpu_sync)(int, int, void *),
+                         void *legacy_ion_custom_data);
 
 #ifdef __cplusplus
 }
