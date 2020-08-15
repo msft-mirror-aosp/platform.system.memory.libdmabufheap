@@ -47,16 +47,18 @@ int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* he
 }
 
 int DmabufHeapCpuSyncStart(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                           SyncType sync_type, int (*legacy_ion_cpu_sync)(int)) {
+                           SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void *),
+                           void *custom_data) {
     if (!buffer_allocator)
         return -EINVAL;
-    return buffer_allocator->CpuSyncStart(dmabuf_fd, sync_type, legacy_ion_cpu_sync);
+    return buffer_allocator->CpuSyncStart(dmabuf_fd, sync_type, legacy_ion_cpu_sync,
+                                          custom_data);
 }
 
 int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                         int (*legacy_ion_cpu_sync)(int)) {
+                         int (*legacy_ion_cpu_sync)(int, int, void *), void *custom_data) {
     if (!buffer_allocator)
         return -EINVAL;
-    return buffer_allocator->CpuSyncEnd(dmabuf_fd, legacy_ion_cpu_sync);
+    return buffer_allocator->CpuSyncEnd(dmabuf_fd, legacy_ion_cpu_sync, custom_data);
 }
 }
