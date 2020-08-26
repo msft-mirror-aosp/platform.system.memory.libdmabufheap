@@ -21,12 +21,29 @@ cc_test {
         "-Werror",
     ],
     static_libs: [
-        "libdmabufheap",
-        "libion",
+        "libbase",
         "liblog",
-        "libbase"
+    ],
+    shared_libs: [
+        "libdmabufheap",
     ],
     srcs: [
           "dmabuf_heap_test.cpp",
+    ],
+}
+
+cc_test {
+    name: "dmabufheaptest",
+    srcs: ["dmabuf_heap_test.c"],
+    static_libs: [
+        "libion",
+        "libdmabufheap",
+        "liblog",
+        "libbase"
+    ],
+    cflags: [
+        "-Werror",
+        "-Wall",
+        "-Wextra",
     ],
 }
