@@ -51,13 +51,13 @@ class BufferAllocator {
      * legacy parameters will be ignored.
      * The method can be deprecated once all devices have
      * migrated to dmabuf heaps from ion. Returns an error code when the
-     * interface used is non-legacy ion and the @ion_heap_name parameter is
+     * interface used is non-legacy ion and the @ion_heap_name parameter is non-empty and
      * invalid or if the interface used is legacy ion and @legacy_ion_heap_mask
      * is invalid(0);
      * @heap_name: dmabuf heap name.
-     * @ion_heap_name: name of the equivalent ion heap.
+     * @ion_heap_name: name of the equivalent ion heap - if empty ("") legacy heap mask will be used
      * @ion_heap_flags: flags to be passed to the ion heap @ion_heap_name for it to function
-     * equivalently to the dmabuf heap @heap_name.
+     * equivalently to the dmabuf heap @heap_name. Ignored if ion_heap_name is empty("").
      * @legacy_ion_heap_mask: heap mask for the equivalent legacy ion heap.
      * @legacy_ion_heap_flags: flags to be passed to the legacy ion heap for it
      * to function equivalently to dmabuf heap @heap_name.
