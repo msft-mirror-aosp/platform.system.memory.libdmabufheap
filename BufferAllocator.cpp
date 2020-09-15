@@ -207,7 +207,7 @@ int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len) {
     return heap_data.fd;
 }
 
-int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags, size_t legacy_align) {
     IonHeapConfig heap_config;
     auto ret = GetIonConfig(heap_name, heap_config);
     if (ret)
@@ -215,7 +215,7 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned
 
     int alloc_fd = -1;
     unsigned int flags = heap_config.flags | heap_flags;
-    ret = ion_alloc_fd(ion_fd_, len, 0, heap_config.mask, flags, &alloc_fd);
+    ret = ion_alloc_fd(ion_fd_, len, legacy_align, heap_config.mask, flags, &alloc_fd);
     if (ret) {
         PLOG(ERROR) << "allocation fails for ion heap with mask: " << heap_config.mask
                     << " and flags: " << flags;
@@ -224,12 +224,12 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned
     return alloc_fd;
 }
 
-int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags, size_t legacy_align) {
     if (DmabufHeapsSupported()) {
         return DmabufAlloc(heap_name, len);
     }
 
-    return IonAlloc(heap_name, len, heap_flags);
+    return IonAlloc(heap_name, len, heap_flags, legacy_align);
 }
 
 int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
