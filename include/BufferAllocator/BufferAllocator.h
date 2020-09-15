@@ -77,8 +77,9 @@ class BufferAllocator {
      * @heap_name: name of the heap to allocate in.
      * @len: size of the allocation.
      * @heap_flags: flags passed to heap.
+     * @legacy_align: alignment value used only by legacy ION
      */
-    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
 
     /**
      * Optional custom callback for legacy ion implementation that can be specified as a
@@ -150,7 +151,7 @@ class BufferAllocator {
     int MapNameToIonName(const std::string& heap_name, const std::string& ion_heap_name,
                          unsigned int ion_heap_flags = 0);
     void LogInterface(const std::string& interface);
-    int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+    int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
     int DmabufAlloc(const std::string& heap_name, size_t len);
 
     struct IonHeapConfig {
