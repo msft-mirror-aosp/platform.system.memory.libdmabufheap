@@ -51,13 +51,13 @@ class BufferAllocator {
      * legacy parameters will be ignored.
      * The method can be deprecated once all devices have
      * migrated to dmabuf heaps from ion. Returns an error code when the
-     * interface used is non-legacy ion and the @ion_heap_name parameter is
+     * interface used is non-legacy ion and the @ion_heap_name parameter is non-empty and
      * invalid or if the interface used is legacy ion and @legacy_ion_heap_mask
      * is invalid(0);
      * @heap_name: dmabuf heap name.
-     * @ion_heap_name: name of the equivalent ion heap.
+     * @ion_heap_name: name of the equivalent ion heap - if empty ("") legacy heap mask will be used
      * @ion_heap_flags: flags to be passed to the ion heap @ion_heap_name for it to function
-     * equivalently to the dmabuf heap @heap_name.
+     * equivalently to the dmabuf heap @heap_name. Ignored if ion_heap_name is empty("").
      * @legacy_ion_heap_mask: heap mask for the equivalent legacy ion heap.
      * @legacy_ion_heap_flags: flags to be passed to the legacy ion heap for it
      * to function equivalently to dmabuf heap @heap_name.
@@ -77,8 +77,9 @@ class BufferAllocator {
      * @heap_name: name of the heap to allocate in.
      * @len: size of the allocation.
      * @heap_flags: flags passed to heap.
+     * @legacy_align: alignment value used only by legacy ION
      */
-    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
 
     /**
      * Optional custom callback for legacy ion implementation that can be specified as a
@@ -150,7 +151,7 @@ class BufferAllocator {
     int MapNameToIonName(const std::string& heap_name, const std::string& ion_heap_name,
                          unsigned int ion_heap_flags = 0);
     void LogInterface(const std::string& interface);
-    int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+    int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
     int DmabufAlloc(const std::string& heap_name, size_t len);
 
     struct IonHeapConfig {
