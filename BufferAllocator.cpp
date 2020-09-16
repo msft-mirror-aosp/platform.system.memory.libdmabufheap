@@ -57,7 +57,7 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
     auto fd = GetDmabufHeapFd(heap_name);
     if (fd < 0) {
         std::string heap_path = kDmaHeapRoot + heap_name;
-        fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDWR | O_CLOEXEC));
+        fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDONLY | O_CLOEXEC));
         if (fd < 0) {
             PLOG(ERROR) << "Unable to open dmabuf heap :" << heap_path;
             return -errno;
