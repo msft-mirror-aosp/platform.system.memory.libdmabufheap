@@ -21,6 +21,10 @@ cc_library {
      ],
     name: "libdmabufheap",
     vendor_available: true,
+
+    // Added because codec2 is double_loadable.
+    // See b/147147883, b/147147992
+    double_loadable:true,
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
