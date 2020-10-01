@@ -22,9 +22,10 @@ cc_test {
     ],
     static_libs: [
         "libbase",
-        "libdmabufheap",
-        "libion",
         "liblog",
+    ],
+    shared_libs: [
+        "libdmabufheap",
     ],
     srcs: [
           "dmabuf_heap_test.cpp",

@@ -57,7 +57,7 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
     auto fd = GetDmabufHeapFd(heap_name);
     if (fd < 0) {
         std::string heap_path = kDmaHeapRoot + heap_name;
-        fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDWR | O_CLOEXEC));
+        fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDONLY | O_CLOEXEC));
         if (fd < 0) {
             PLOG(ERROR) << "Unable to open dmabuf heap :" << heap_path;
             return -errno;
@@ -98,7 +98,8 @@ void BufferAllocator::QueryIonHeaps() {
 BufferAllocator::BufferAllocator() {
     if (OpenDmabufHeap("system") < 0) {
         /* Since dmabuf heaps are not supported, try opening /dev/ion. */
-        ion_fd_.reset(TEMP_FAILURE_RETRY(open(kIonDevice, O_RDWR | O_CLOEXEC)));
+        ion_fd_.reset(TEMP_FAILURE_RETRY(open(kIonDevice, O_RDONLY| O_CLOEXEC)));
+
         /*
          * If ion_fd_ is invalid, then neither dmabuf heaps nor ion is supported
          * which is an invalid configuration. Abort in this case.
@@ -153,7 +154,7 @@ int BufferAllocator::MapNameToIonHeap(const std::string& heap_name,
                                       unsigned int legacy_ion_heap_flags) {
     int ret = 0;
 
-    if (uses_legacy_ion_iface_) {
+    if (uses_legacy_ion_iface_ || ion_heap_name == "") {
         ret = MapNameToIonMask(heap_name, legacy_ion_heap_mask, legacy_ion_heap_flags);
     } else if (!DmabufHeapsSupported() && !ion_heap_name.empty()) {
         ret = MapNameToIonName(heap_name, ion_heap_name, ion_heap_flags);
@@ -206,7 +207,7 @@ int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len) {
     return heap_data.fd;
 }
 
-int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags, size_t legacy_align) {
     IonHeapConfig heap_config;
     auto ret = GetIonConfig(heap_name, heap_config);
     if (ret)
@@ -214,7 +215,7 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned
 
     int alloc_fd = -1;
     unsigned int flags = heap_config.flags | heap_flags;
-    ret = ion_alloc_fd(ion_fd_, len, 0, heap_config.mask, flags, &alloc_fd);
+    ret = ion_alloc_fd(ion_fd_, len, legacy_align, heap_config.mask, flags, &alloc_fd);
     if (ret) {
         PLOG(ERROR) << "allocation fails for ion heap with mask: " << heap_config.mask
                     << " and flags: " << flags;
@@ -223,16 +224,17 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len, unsigned
     return alloc_fd;
 }
 
-int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags) {
+int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags, size_t legacy_align) {
     if (DmabufHeapsSupported()) {
         return DmabufAlloc(heap_name, len);
     }
 
-    return IonAlloc(heap_name, len, heap_flags);
+    return IonAlloc(heap_name, len, heap_flags, legacy_align);
 }
 
 int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
-                                      const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+                                      const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
+                                      void *legacy_ion_custom_data) {
     if (!legacy_ion_cpu_sync_custom)
         return ion_sync_fd(ion_fd_, dmabuf_fd);
 
@@ -243,16 +245,18 @@ int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
         return new_ion_fd;
     }
 
-    int ret = legacy_ion_cpu_sync_custom(new_ion_fd);
+    int ret = legacy_ion_cpu_sync_custom(new_ion_fd, dmabuf_fd, legacy_ion_custom_data);
 
     close(new_ion_fd);
     return ret;
 }
 
 int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_type,
-                            const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+                            const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
+                            void *legacy_ion_custom_data) {
     if (uses_legacy_ion_iface_) {
-        return LegacyIonCpuSync(dmabuf_fd, legacy_ion_cpu_sync_custom);
+        return LegacyIonCpuSync(dmabuf_fd, legacy_ion_cpu_sync_custom,
+                                legacy_ion_custom_data);
     }
 
     struct dma_buf_sync sync = {
@@ -263,14 +267,16 @@ int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_ty
 }
 
 int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
-                                  const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+                                  const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
+                                  void *legacy_ion_custom_data) {
     auto it = fd_last_sync_type_.find(dmabuf_fd);
     if (it != fd_last_sync_type_.end()) {
         LOG(ERROR) << "CpuSyncEnd needs to be invoked for this fd first";
         return -EINVAL;
     }
 
-    int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom);
+    int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom,
+                     legacy_ion_custom_data);
 
     if (ret) {
         PLOG(ERROR) << "CpuSyncStart() failure";
@@ -281,7 +287,8 @@ int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
 }
 
 int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
-                                const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom) {
+                                const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
+                                void *legacy_ion_custom_data) {
     auto it = fd_last_sync_type_.find(dmabuf_fd);
     if (it == fd_last_sync_type_.end()) {
         LOG(ERROR) << "CpuSyncStart() must be called before CpuSyncEnd()";
@@ -289,7 +296,7 @@ int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
     }
 
     int ret = DoSync(dmabuf_fd, false /* start */, it->second /* sync_type */,
-                     legacy_ion_cpu_sync_custom);
+                     legacy_ion_cpu_sync_custom, legacy_ion_custom_data);
     if (ret) {
         PLOG(ERROR) << "CpuSyncEnd() failure";
     } else {

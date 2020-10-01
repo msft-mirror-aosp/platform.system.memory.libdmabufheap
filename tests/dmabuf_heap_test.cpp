@@ -17,7 +17,7 @@
 #include <BufferAllocator/BufferAllocator.h>
 #include "dmabuf_heap_test.h"
 
-#include <ion/ion.h>
+#include <linux/ion.h>
 #include <sys/mman.h>
 
 #include <gtest/gtest.h>
@@ -217,12 +217,14 @@ TEST_F(DmaBufHeapTest, TestCpuSyncMismatched2) {
     }
 }
 
-int CustomCpuSyncStart(int /* ion_fd */) {
+int CustomCpuSyncStart(int /* ion_fd */, int /* dma_buf fd */,
+                       void* /* custom_data pointer */) {
     LOG(INFO) << "In custom cpu sync start callback";
     return 0;
 }
 
-int CustomCpuSyncEnd(int /* ion_fd */) {
+int CustomCpuSyncEnd(int /* ion_fd */, int /* dma_buf fd */,
+                     void* /* custom_data pointer */) {
     LOG(INFO) << "In custom cpu sync end callback";
     return 0;
 }
