@@ -43,12 +43,9 @@ class BufferAllocator {
     /**
      * Maps a dmabuf heap to an equivalent ion heap configuration. This method is required since
      * dmabuf heaps do not support heap flags. This means that a single ion heap may encompass the
-     * functionality of multiple dmabuf heaps by using heap flags. This method will check the
-     * interface being used and only create the required mappings. For example,
-     * if the interface being used is dmabuf heaps, the method will not do
-     * anything. If the interface being used is non-legacy ion, the mapping from
-     * dmabuf heap name to non-legacy ion heap name will be created and the
-     * legacy parameters will be ignored.
+     * functionality of multiple dmabuf heaps by using heap flags. If the interface being used is
+     * non-legacy ion, the mapping from dmabuf heap name to non-legacy ion heap name will be created
+     * and the legacy parameters will be ignored.
      * The method can be deprecated once all devices have
      * migrated to dmabuf heaps from ion. Returns an error code when the
      * interface used is non-legacy ion and the @ion_heap_name parameter is non-empty and
@@ -69,11 +66,12 @@ class BufferAllocator {
     /* *
      * Returns a dmabuf fd if the allocation in one of the specified heaps is successful and
      * an error code otherwise. If dmabuf heaps are supported, tries to allocate in the
-     * specified dmabuf heap. If dmabuf heaps are not supported and if ion_fd is a valid fd,
-     * go through saved heap data to find a heap ID/mask to match the specified heap names and
-     * allocate memory as per the specified parameters. For vendor defined heaps with a legacy
-     * ION interface(no heap query support), MapNameToIonMask() must be called prior to invocation
-     * of Alloc() to map a heap name to an equivalent heap mask and heap flag configuration.
+     * specified dmabuf heap. If allocation fails in the specified dmabuf heap and ion_fd is a
+     * valid fd, goes through saved heap data to find a heap ID/mask to match the specified heap
+     * names and allocates memory as per the specified parameters. For vendor defined heaps with a
+     * legacy ION interface(no heap query support), MapNameToIonMask() must be called prior to
+     * invocation of Alloc() to map a heap name to an equivalent heap mask and heap flag
+     * configuration.
      * @heap_name: name of the heap to allocate in.
      * @len: size of the allocation.
      * @heap_flags: flags passed to heap.
