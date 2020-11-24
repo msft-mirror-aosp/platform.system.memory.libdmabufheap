@@ -22,6 +22,7 @@
 
 #ifdef __cplusplus
 extern "C" {
+typedef class BufferAllocator BufferAllocator;
 #else
 typedef struct BufferAllocator BufferAllocator;
 #endif
