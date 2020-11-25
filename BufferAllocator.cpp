@@ -140,7 +140,10 @@ int BufferAllocator::MapNameToIonHeap(const std::string& heap_name,
                                       unsigned int ion_heap_flags,
                                       unsigned int legacy_ion_heap_mask,
                                       unsigned int legacy_ion_heap_flags) {
-    int ret = 0;
+    /* if the DMA-BUF Heap exists, we can ignore ion mappings */
+    int ret = OpenDmabufHeap(heap_name);
+    if (ret >= 0)
+        return 0;
 
     if (uses_legacy_ion_iface_ || ion_heap_name == "") {
         ret = MapNameToIonMask(heap_name, legacy_ion_heap_mask, legacy_ion_heap_flags);
