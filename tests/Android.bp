@@ -30,6 +30,7 @@ cc_test {
     srcs: [
           "dmabuf_heap_test.cpp",
     ],
+    test_suites: ["device-tests"],
 }
 
 cc_test {
