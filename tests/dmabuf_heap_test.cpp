@@ -28,21 +28,25 @@
 DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
     /*
      * Legacy ion devices may have hardcoded heap IDs that do not
-     * match the ion UAPI header. Map heap name 'system' to a heap mask
+     * match the ion UAPI header. Map heap name 'system'/'system-uncached' to a heap mask
      * of all 1s so that these devices will allocate from the first
-     * available heap when asked to allocate from a heap of name 'system'.
+     * available heap when asked to allocate from the system or system-uncached
+     * heap.
      */
     allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
                                 0 /* no mapping for non-legacy ion */,
                                 ~0 /* legacy ion heap mask */);
+    allocator->MapNameToIonHeap(kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
+                                0 /* no mapping for non-legacy ion */,
+                                ~0 /* legacy ion heap mask */);
 }
 
-TEST_F(DmaBufHeapTest, Allocate) {
+TEST_F(DmaBufHeapTest, AllocateUncached) {
     static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (size_t size : allocationSizes) {
         SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemHeapName << " size: " << size);
-        int fd = allocator->Alloc(kDmabufSystemHeapName, size);
+                     << "heap: " << kDmabufSystemUncachedHeapName << " size: " << size);
+        int fd = allocator->Alloc(kDmabufSystemUncachedHeapName, size);
         ASSERT_GE(fd, 0);
         ASSERT_EQ(close(fd), 0);  // free the buffer
     }
@@ -72,7 +76,21 @@ TEST_F(DmaBufHeapTest, AllocateCachedNeedsSync) {
     }
 }
 
-TEST_F(DmaBufHeapTest, RepeatedAllocate) {
+TEST_F(DmaBufHeapTest, RepeatedAllocateUncached) {
+    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
+    for (size_t size : allocationSizes) {
+        SCOPED_TRACE(::testing::Message()
+                     << "heap: " << kDmabufSystemUncachedHeapName << " size: " << size);
+        for (unsigned int i = 0; i < 1024; i++) {
+            SCOPED_TRACE(::testing::Message() << "iteration " << i);
+            int fd = allocator->Alloc(kDmabufSystemUncachedHeapName, size);
+            ASSERT_GE(fd, 0);
+            ASSERT_EQ(close(fd), 0);  // free the buffer
+        }
+    }
+}
+
+TEST_F(DmaBufHeapTest, RepeatedAllocateCached) {
     static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (size_t size : allocationSizes) {
         SCOPED_TRACE(::testing::Message()
