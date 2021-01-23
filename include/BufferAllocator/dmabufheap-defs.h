@@ -20,6 +20,7 @@
 #include <linux/dma-buf.h>
 
 static const char kDmabufSystemHeapName[] = "system";
+static const char kDmabufSystemUncachedHeapName[] = "system-uncached";
 
 typedef enum {
     kSyncRead = DMA_BUF_SYNC_READ,
