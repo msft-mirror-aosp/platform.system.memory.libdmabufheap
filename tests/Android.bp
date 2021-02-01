@@ -30,6 +30,7 @@ cc_test {
     srcs: [
           "dmabuf_heap_test.cpp",
     ],
+    test_suites: ["device-tests"],
 }
 
 cc_test {
@@ -47,3 +48,19 @@ cc_test {
         "-Wextra",
     ],
 }
+
+cc_test {
+    name: "dmabuf-heap-bench",
+    srcs: ["dmabuf_heap_bench.c"],
+    static_libs: [
+        "libion",
+        "liblog",
+        "libbase"
+    ],
+    cflags: [
+        "-Werror",
+        "-Wall",
+        "-Wextra",
+    ],
+}
+

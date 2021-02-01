@@ -70,7 +70,8 @@ void BufferAllocator::QueryIonHeaps() {
     uses_legacy_ion_iface_ = ion_is_legacy(ion_fd_);
     if (uses_legacy_ion_iface_) {
         LogInterface("Legacy ion heaps");
-        MapNameToIonMask(kDmabufSystemHeapName, ION_HEAP_SYSTEM_MASK);
+        MapNameToIonMask(kDmabufSystemHeapName, ION_HEAP_SYSTEM_MASK, ION_FLAG_CACHED);
+        MapNameToIonMask(kDmabufSystemUncachedHeapName, ION_HEAP_SYSTEM_MASK);
         return;
     }
 
@@ -90,7 +91,8 @@ void BufferAllocator::QueryIonHeaps() {
      * No error checking here, it is possible that devices may have used another name for
      * the ion system heap.
      */
-    MapNameToIonName(kDmabufSystemHeapName, kIonSystemHeapName);
+    MapNameToIonName(kDmabufSystemHeapName, kIonSystemHeapName, ION_FLAG_CACHED);
+    MapNameToIonName(kDmabufSystemUncachedHeapName, kIonSystemHeapName);
 }
 
 BufferAllocator::BufferAllocator() {
