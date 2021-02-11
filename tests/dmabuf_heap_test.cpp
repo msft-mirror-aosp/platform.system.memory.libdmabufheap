@@ -23,7 +23,9 @@
 #include <gtest/gtest.h>
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <android-base/unique_fd.h>
+#include <vintf/VintfObject.h>
 
 DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
     /*
@@ -271,4 +273,25 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
         ASSERT_EQ(0, munmap(ptr, size));
         ASSERT_EQ(0, close(map_fd));
     }
+}
+
+TEST_F(DmaBufHeapTest, TestHeapQuery) {
+    using android::vintf::KernelVersion;
+
+    if (android::base::GetIntProperty("ro.product.first_api_level", 0) < __ANDROID_API_S__) {
+        GTEST_SKIP();
+    }
+
+    KernelVersion min_kernel_version = KernelVersion(5, 10, 0);
+    KernelVersion kernel_version =
+            android::vintf::VintfObject::GetInstance()
+                    ->getRuntimeInfo(android::vintf::RuntimeInfo::FetchFlag::CPU_VERSION)
+                    ->kernelVersion();
+    if (kernel_version < min_kernel_version) {
+        GTEST_SKIP();
+    }
+
+    auto heap_list = allocator->GetDmabufHeapList();
+    ASSERT_TRUE(heap_list.find("system") != heap_list.end());
+    ASSERT_TRUE(heap_list.find("system-uncached") != heap_list.end());
 }
