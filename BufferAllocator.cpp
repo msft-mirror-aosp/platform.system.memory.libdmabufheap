@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #include <string>
+#include <unordered_set>
 
 #include <android-base/logging.h>
 #include <android-base/unique_fd.h>
@@ -300,4 +301,20 @@ int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
     }
 
     return ret;
+}
+
+std::unordered_set<std::string> BufferAllocator::GetDmabufHeapList() {
+    std::unordered_set<std::string> heap_list;
+    std::unique_ptr<DIR, int (*)(DIR*)> dir(opendir(kDmaHeapRoot), closedir);
+
+    if (dir) {
+        struct dirent* dent;
+        while ((dent = readdir(dir.get()))) {
+            if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, "..")) continue;
+
+            heap_list.insert(dent->d_name);
+        }
+    }
+
+    return heap_list;
 }
