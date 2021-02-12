@@ -28,6 +28,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 
@@ -137,6 +138,13 @@ class BufferAllocator {
     int CpuSyncEnd(unsigned int dmabuf_fd,
                    const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync = nullptr,
                    void *legacy_ion_custom_data = nullptr);
+
+    /**
+     * Query supported DMA-BUF heaps.
+     *
+     * @return the list of supported DMA-BUF heap names.
+     */
+    static std::unordered_set<std::string> GetDmabufHeapList();
 
   private:
     int OpenDmabufHeap(const std::string& name);
