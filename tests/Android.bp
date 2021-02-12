@@ -21,11 +21,13 @@ cc_test {
         "-Werror",
     ],
     static_libs: [
+        "libc++fs",
         "libbase",
         "liblog",
     ],
     shared_libs: [
         "libdmabufheap",
+        "libvintf",
     ],
     srcs: [
           "dmabuf_heap_test.cpp",
