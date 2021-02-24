@@ -14,6 +14,10 @@
 // limitations under the License.
 //
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 cc_test {
     name: "dmabufheap-unit-tests",
     cflags: [
@@ -21,11 +25,13 @@ cc_test {
         "-Werror",
     ],
     static_libs: [
+        "libc++fs",
         "libbase",
         "liblog",
     ],
     shared_libs: [
         "libdmabufheap",
+        "libvintf",
     ],
     srcs: [
           "dmabuf_heap_test.cpp",
@@ -63,4 +69,3 @@ cc_test {
         "-Wextra",
     ],
 }
-
