@@ -36,7 +36,11 @@ cc_test {
     srcs: [
           "dmabuf_heap_test.cpp",
     ],
-    test_suites: ["device-tests"],
+    test_suites: [
+        "general-tests",
+        "vts"
+    ],
+    test_config: "dmabufheap-unit-tests.xml",
 }
 
 cc_test {
