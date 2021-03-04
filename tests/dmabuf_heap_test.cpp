@@ -23,7 +23,9 @@
 #include <gtest/gtest.h>
 
 #include <android-base/logging.h>
+#include <android-base/properties.h>
 #include <android-base/unique_fd.h>
+#include <vintf/VintfObject.h>
 
 DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
     /*
@@ -271,4 +273,53 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
         ASSERT_EQ(0, munmap(ptr, size));
         ASSERT_EQ(0, close(map_fd));
     }
+}
+
+TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
+    using android::vintf::KernelVersion;
+
+    static const size_t kAllocSizeInBytes = 4096;
+    if (android::base::GetIntProperty("ro.product.first_api_level", 0) < __ANDROID_API_S__) {
+        GTEST_SKIP();
+    }
+
+    KernelVersion min_kernel_version = KernelVersion(5, 10, 0);
+    KernelVersion kernel_version =
+            android::vintf::VintfObject::GetInstance()
+                    ->getRuntimeInfo(android::vintf::RuntimeInfo::FetchFlag::CPU_VERSION)
+                    ->kernelVersion();
+    if (kernel_version < min_kernel_version) {
+        GTEST_SKIP();
+    }
+
+    auto heap_list = allocator->GetDmabufHeapList();
+    ASSERT_TRUE(heap_list.find("system") != heap_list.end());
+
+    /*
+     * Test that system heap can be allocated from.
+     */
+    int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
+    ASSERT_GE(map_fd, 0);
+
+    /*
+     * Test that system heap can be mmapped by the CPU.
+     */
+    void* ptr;
+    ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+    ASSERT_TRUE(ptr != NULL);
+
+    /*
+     * Test that the allocated memory is zeroed.
+     */
+    auto zeroes_ptr = std::make_unique<char[]>(kAllocSizeInBytes);
+    int ret = allocator->CpuSyncStart(map_fd);
+    ASSERT_EQ(0, ret);
+
+    ASSERT_EQ(0, memcmp(ptr, zeroes_ptr.get(), kAllocSizeInBytes));
+
+    ret = allocator->CpuSyncEnd(map_fd);
+    ASSERT_EQ(0, ret);
+
+    ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
+    ASSERT_EQ(0, close(map_fd));
 }
