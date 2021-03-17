@@ -26,6 +26,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -173,6 +174,8 @@ class BufferAllocator {
 
     /* Stores all open dmabuf_heap handles. */
     std::unordered_map<std::string, android::base::unique_fd> dmabuf_heap_fds_;
+    /* Protects dma_buf_heap_fd_ from concurrent access */
+    std::shared_mutex dmabuf_heap_fd_mutex_;
 
     /* saved handle to /dev/ion. */
     android::base::unique_fd ion_fd_;
@@ -193,6 +196,9 @@ class BufferAllocator {
     inline static bool logged_interface_ = false;
     /* stores a map of dmabuf heap names to equivalent ion heap configurations. */
     std::unordered_map<std::string, struct IonHeapConfig> heap_name_to_config_;
+    /* protects heap_name_to_config_ from concurrent access */
+    std::shared_mutex heap_name_to_config_mutex_;
+
     /**
      * stores a map of dmabuf fds to the type of their last known CpuSyncStart()
      * call. The entry will be cleared when CpuSyncEnd() is invoked.
