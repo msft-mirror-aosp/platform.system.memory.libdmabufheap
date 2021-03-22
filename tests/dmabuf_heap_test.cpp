@@ -33,9 +33,9 @@ class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
   public:
     virtual void SetUp() { allocator = new BufferAllocator(); }
 
-    void DoAlloc(const std::string& heap_name) {
+    void DoAlloc(bool cpu_access_needed) {
         static const size_t kAllocSizeInBytes = 4096;
-        int map_fd = allocator->Alloc(heap_name, kAllocSizeInBytes);
+        int map_fd = allocator->AllocSystem(cpu_access_needed, kAllocSizeInBytes);
         ASSERT_GE(map_fd, 0);
 
         void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
@@ -52,19 +52,19 @@ class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
     }
 
     void DoConcurrentAlloc() {
-        DoAlloc(kDmabufSystemHeapName);
-        DoAlloc(kDmabufSystemUncachedHeapName);
+        DoAlloc(true /* cpu_access_needed */);
+        DoAlloc(false /* cpu_access_needed */);
     }
 
     void DoConcurrentAllocWithMapName() {
         allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
                                     0 /* no mapping for non-legacy ion */,
                                     ~0 /* legacy ion heap mask */, ION_FLAG_CACHED);
-        DoAlloc(kDmabufSystemHeapName);
+        DoAlloc(true /* cpu_access_needed */);
         allocator->MapNameToIonHeap(
                 kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
                 0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
-        DoAlloc(kDmabufSystemUncachedHeapName);
+        DoAlloc(false /* cpu_access_needed */);
     }
 
     virtual void TearDown() { delete allocator; }
@@ -124,26 +124,16 @@ DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
                                 ~0 /* legacy ion heap mask */);
 }
 
-TEST_F(DmaBufHeapTest, AllocateUncached) {
+TEST_F(DmaBufHeapTest, Allocate) {
     static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemUncachedHeapName << " size: " << size);
-        int fd = allocator->Alloc(kDmabufSystemUncachedHeapName, size);
-        ASSERT_GE(fd, 0);
-        ASSERT_EQ(close(fd), 0);  // free the buffer
-    }
-}
-
-TEST_F(DmaBufHeapTest, AllocateCached) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemHeapName << " size: " << size);
-        int fd = allocator->Alloc(kDmabufSystemHeapName, size, ION_FLAG_CACHED
-                                  /* ion heap flags will be ignored if using dmabuf heaps */);
-        ASSERT_GE(fd, 0);
-        ASSERT_EQ(close(fd), 0);  // free the buffer
+    for (bool cpu_access_needed : {false, true}) {
+        for (size_t size : allocationSizes) {
+            SCOPED_TRACE(::testing::Message()
+                         << "cpu_access_needed: " << cpu_access_needed << " size: " << size);
+            int fd = allocator->AllocSystem(cpu_access_needed, size);
+            ASSERT_GE(fd, 0);
+            ASSERT_EQ(close(fd), 0);  // free the buffer
+        }
     }
 }
 
@@ -159,30 +149,18 @@ TEST_F(DmaBufHeapTest, AllocateCachedNeedsSync) {
     }
 }
 
-TEST_F(DmaBufHeapTest, RepeatedAllocateUncached) {
+TEST_F(DmaBufHeapTest, RepeatedAllocate) {
     static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemUncachedHeapName << " size: " << size);
-        for (unsigned int i = 0; i < 1024; i++) {
-            SCOPED_TRACE(::testing::Message() << "iteration " << i);
-            int fd = allocator->Alloc(kDmabufSystemUncachedHeapName, size);
-            ASSERT_GE(fd, 0);
-            ASSERT_EQ(close(fd), 0);  // free the buffer
-        }
-    }
-}
-
-TEST_F(DmaBufHeapTest, RepeatedAllocateCached) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemHeapName << " size: " << size);
-        for (unsigned int i = 0; i < 1024; i++) {
-            SCOPED_TRACE(::testing::Message() << "iteration " << i);
-            int fd = allocator->Alloc(kDmabufSystemHeapName, size);
-            ASSERT_GE(fd, 0);
-            ASSERT_EQ(close(fd), 0);  // free the buffer
+    for (bool cpu_access_needed : {false, true}) {
+        for (size_t size : allocationSizes) {
+            SCOPED_TRACE(::testing::Message()
+                         << "cpu_access_needed: " << cpu_access_needed << " size: " << size);
+            for (unsigned int i = 0; i < 1024; i++) {
+                SCOPED_TRACE(::testing::Message() << "iteration " << i);
+                int fd = allocator->AllocSystem(cpu_access_needed, size);
+                ASSERT_GE(fd, 0);
+                ASSERT_EQ(close(fd), 0);  // free the buffer
+            }
         }
     }
 }
@@ -299,7 +277,6 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
 TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     using android::vintf::KernelVersion;
 
-    static const size_t kAllocSizeInBytes = 4096;
     if (android::base::GetIntProperty("ro.product.first_api_level", 0) < __ANDROID_API_S__) {
         GTEST_SKIP();
     }
@@ -316,30 +293,34 @@ TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     auto heap_list = allocator->GetDmabufHeapList();
     ASSERT_TRUE(heap_list.find("system") != heap_list.end());
 
-    /*
-     * Test that system heap can be allocated from.
-     */
-    int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-    ASSERT_GE(map_fd, 0);
+    for (bool cpu_access_needed : {false, true}) {
+        static const size_t kAllocSizeInBytes = 4096;
+        /*
+         * Test that system heap can be allocated from.
+         */
+        SCOPED_TRACE(::testing::Message() << "cpu_access_needed: " << cpu_access_needed);
+        int map_fd = allocator->AllocSystem(cpu_access_needed, kAllocSizeInBytes);
+        ASSERT_GE(map_fd, 0);
 
-    /*
-     * Test that system heap can be mmapped by the CPU.
-     */
-    void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
-    ASSERT_TRUE(ptr != MAP_FAILED);
+        /*
+         * Test that system heap can be mmapped by the CPU.
+         */
+        void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+        ASSERT_TRUE(ptr != MAP_FAILED);
 
-    /*
-     * Test that the allocated memory is zeroed.
-     */
-    auto zeroes_ptr = std::make_unique<char[]>(kAllocSizeInBytes);
-    int ret = allocator->CpuSyncStart(map_fd);
-    ASSERT_EQ(0, ret);
+        /*
+         * Test that the allocated memory is zeroed.
+         */
+        auto zeroes_ptr = std::make_unique<char[]>(kAllocSizeInBytes);
+        int ret = allocator->CpuSyncStart(map_fd);
+        ASSERT_EQ(0, ret);
 
-    ASSERT_EQ(0, memcmp(ptr, zeroes_ptr.get(), kAllocSizeInBytes));
+        ASSERT_EQ(0, memcmp(ptr, zeroes_ptr.get(), kAllocSizeInBytes));
 
-    ret = allocator->CpuSyncEnd(map_fd);
-    ASSERT_EQ(0, ret);
+        ret = allocator->CpuSyncEnd(map_fd);
+        ASSERT_EQ(0, ret);
 
-    ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
-    ASSERT_EQ(0, close(map_fd));
+        ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
+        ASSERT_EQ(0, close(map_fd));
+    }
 }
