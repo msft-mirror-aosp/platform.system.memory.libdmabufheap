@@ -18,8 +18,8 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-cc_test {
-    name: "dmabufheap-unit-tests",
+cc_defaults {
+    name: "dmabufheap-unit-tests-default",
     cflags: [
         "-Wall",
         "-Werror",
@@ -34,13 +34,27 @@ cc_test {
         "libvintf",
     ],
     srcs: [
-          "dmabuf_heap_test.cpp",
+        "dmabuf_heap_test.cpp",
     ],
+}
+
+cc_test {
+    name: "dmabufheap-vts-unit-tests",
+    defaults: ["dmabufheap-unit-tests-default"],
+    test_config: "dmabufheap-vts-unit-tests.xml",
     test_suites: [
         "general-tests",
-        "vts"
+        "vts",
     ],
-    test_config: "dmabufheap-unit-tests.xml",
+}
+
+cc_test {
+    name: "dmabufheap-unit-tests",
+    defaults: ["dmabufheap-unit-tests-default"],
+    test_suites: [
+        "device-tests",
+    ],
+    require_root: true,
 }
 
 cc_test {
@@ -50,7 +64,7 @@ cc_test {
         "libion",
         "libdmabufheap",
         "liblog",
-        "libbase"
+        "libbase",
     ],
     cflags: [
         "-Werror",
@@ -65,7 +79,7 @@ cc_test {
     static_libs: [
         "libion",
         "liblog",
-        "libbase"
+        "libbase",
     ],
     cflags: [
         "-Werror",
