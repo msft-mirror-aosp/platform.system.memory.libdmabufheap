@@ -108,7 +108,7 @@ void libdmabufheaptest(bool use_custom_callback, void *legacy_ion_custom_data) {
         }
     }
 
-    ret = DmabufHeapCpuSyncEnd(bufferAllocator, fd,
+    ret = DmabufHeapCpuSyncEnd(bufferAllocator, fd, kSyncReadWrite,
                                use_custom_callback ? legacy_ion_custom_callback : NULL,
                                legacy_ion_custom_data);
     if (ret) {
