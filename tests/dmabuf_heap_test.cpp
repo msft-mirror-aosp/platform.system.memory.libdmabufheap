@@ -130,7 +130,7 @@ TEST_F(DmaBufHeapTest, Zeroed) {
 
         memset(ptr, 0xaa, kAllocSizeInBytes);
 
-        ret = allocator->CpuSyncEnd(map_fd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
@@ -174,65 +174,10 @@ TEST_F(DmaBufHeapTest, TestCpuSync) {
         int ret = allocator->CpuSyncStart(map_fd, sync_type);
         ASSERT_EQ(0, ret);
 
-        ret = allocator->CpuSyncEnd(map_fd);
+        ret = allocator->CpuSyncEnd(map_fd, sync_type);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
-        ASSERT_EQ(0, close(map_fd));
-    }
-}
-
-TEST_F(DmaBufHeapTest, TestCpuSyncMismatched) {
-    static const size_t kAllocSizeInBytes = 4096;
-    auto vec_sync_type = {kSyncRead, kSyncWrite, kSyncReadWrite};
-    for (auto sync_type : vec_sync_type) {
-        int map_fd1 = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd1, 0);
-
-        int map_fd2 = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd2, 0);
-
-        int ret = allocator->CpuSyncStart(map_fd1, sync_type);
-        ASSERT_EQ(0, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd2);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd1);
-        ASSERT_EQ(0, ret);
-
-        ASSERT_EQ(0, close(map_fd1));
-        ASSERT_EQ(0, close(map_fd2));
-    }
-}
-
-TEST_F(DmaBufHeapTest, TestCpuSyncMismatched2) {
-    static const size_t kAllocSizeInBytes = 4096;
-    auto vec_sync_type = {kSyncRead, kSyncWrite, kSyncReadWrite};
-    for (auto sync_type : vec_sync_type) {
-        int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd, 0);
-
-        int ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(0, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(0, ret);
-
-        /* Should fail since it is missing a CpuSyncStart() */
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(0, ret);
-
-        /* Should fail since it is missing a CpuSyncEnd() */
-        ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(0, ret);
-
         ASSERT_EQ(0, close(map_fd));
     }
 }
@@ -267,7 +212,7 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
 
         memset(ptr, 0xaa, size);
 
-        ret = allocator->CpuSyncEnd(map_fd, CustomCpuSyncEnd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite, CustomCpuSyncEnd);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, size));
