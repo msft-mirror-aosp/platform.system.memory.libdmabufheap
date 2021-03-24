@@ -13,18 +13,18 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-<configuration description="Config for dmabufheap-unit-tests">
+<configuration description="Config for dmabufheap-vts-unit-tests">
     <object type="module_controller" class="com.android.tradefed.testtype.suite.module.ShippingApiLevelModuleController">
         <option name="min-api-level" value="30" />
     </object>
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer"/>
     <target_preparer class="com.android.tradefed.targetprep.PushFilePreparer">
         <option name="cleanup" value="true" />
-        <option name="push" value="dmabufheap-unit-tests->/data/local/tmp/dmabufheap-unit-tests" />
+        <option name="push" value="dmabufheap-vts-unit-tests->/data/local/tmp/dmabufheap-vts-unit-tests" />
     </target_preparer>
     <test class="com.android.tradefed.testtype.GTest" >
         <option name="native-test-device-path" value="/data/local/tmp" />
-        <option name="module-name" value="dmabufheap-unit-tests" />
+        <option name="module-name" value="dmabufheap-vts-unit-tests" />
         <option name="include-filter" value="*TestDmabufSystemHeapCompliance*" />
     </test>
 </configuration>
