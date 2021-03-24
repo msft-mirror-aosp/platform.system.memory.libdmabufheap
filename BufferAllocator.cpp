@@ -321,3 +321,9 @@ std::unordered_set<std::string> BufferAllocator::GetDmabufHeapList() {
 
     return heap_list;
 }
+
+bool BufferAllocator::CheckIonSupport() {
+    static bool ion_support = (access(kIonDevice, R_OK) == 0);
+
+    return ion_support;
+}

@@ -296,6 +296,12 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
     }
 }
 
+TEST_F(DmaBufHeapTest, TestDeviceCapabilityCheck) {
+    auto heap_list = allocator->GetDmabufHeapList();
+
+    ASSERT_TRUE(!heap_list.empty() || BufferAllocator::CheckIonSupport());
+}
+
 TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     using android::vintf::KernelVersion;
 
