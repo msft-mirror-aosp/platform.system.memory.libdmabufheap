@@ -252,6 +252,38 @@ int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
     return fd;
 }
 
+int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags,
+                                 size_t legacy_align) {
+    if (!cpu_access_needed) {
+        /*
+         * CPU does not need to access allocated buffer so we try to allocate in
+         * the 'system-uncached' heap after querying for its existence.
+         */
+        static bool uncached_dmabuf_system_heap_support = [this]() -> bool {
+            auto dmabuf_heap_list = this->GetDmabufHeapList();
+            return (dmabuf_heap_list.find(kDmabufSystemUncachedHeapName) != dmabuf_heap_list.end());
+        }();
+
+        if (uncached_dmabuf_system_heap_support)
+            return DmabufAlloc(kDmabufSystemUncachedHeapName, len);
+
+        static bool uncached_ion_system_heap_support = [this]() -> bool {
+            IonHeapConfig heap_config;
+            auto ret = this->GetIonConfig(kDmabufSystemUncachedHeapName, heap_config);
+            return (ret == 0);
+        }();
+
+        if (uncached_ion_system_heap_support)
+            return IonAlloc(kDmabufSystemUncachedHeapName, len, heap_flags, legacy_align);
+    }
+
+    /*
+     * Either 1) CPU needs to access allocated buffer OR 2) CPU does not need to
+     * access allocated buffer but the "system-uncached" heap is unsupported.
+     */
+    return Alloc(kDmabufSystemHeapName, len, heap_flags, legacy_align);
+}
+
 int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
                                       const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                       void *legacy_ion_custom_data) {
@@ -289,39 +321,19 @@ int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_ty
 int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
                                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                   void *legacy_ion_custom_data) {
-    auto it = fd_last_sync_type_.find(dmabuf_fd);
-    if (it != fd_last_sync_type_.end()) {
-        LOG(ERROR) << "CpuSyncEnd needs to be invoked for this fd first";
-        return -EINVAL;
-    }
-
     int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom,
                      legacy_ion_custom_data);
 
-    if (ret) {
-        PLOG(ERROR) << "CpuSyncStart() failure";
-    } else {
-        fd_last_sync_type_[dmabuf_fd] = sync_type;
-    }
+    if (ret) PLOG(ERROR) << "CpuSyncStart() failure";
     return ret;
 }
 
-int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
+int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type,
                                 const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
-                                void *legacy_ion_custom_data) {
-    auto it = fd_last_sync_type_.find(dmabuf_fd);
-    if (it == fd_last_sync_type_.end()) {
-        LOG(ERROR) << "CpuSyncStart() must be called before CpuSyncEnd()";
-        return -EINVAL;
-    }
-
-    int ret = DoSync(dmabuf_fd, false /* start */, it->second /* sync_type */,
-                     legacy_ion_cpu_sync_custom, legacy_ion_custom_data);
-    if (ret) {
-        PLOG(ERROR) << "CpuSyncEnd() failure";
-    } else {
-        fd_last_sync_type_.erase(it);
-    }
+                                void* legacy_ion_custom_data) {
+    int ret = DoSync(dmabuf_fd, false /* start */, sync_type, legacy_ion_cpu_sync_custom,
+                     legacy_ion_custom_data);
+    if (ret) PLOG(ERROR) << "CpuSyncEnd() failure";
 
     return ret;
 }
@@ -340,4 +352,10 @@ std::unordered_set<std::string> BufferAllocator::GetDmabufHeapList() {
     }
 
     return heap_list;
+}
+
+bool BufferAllocator::CheckIonSupport() {
+    static bool ion_support = (access(kIonDevice, R_OK) == 0);
+
+    return ion_support;
 }
