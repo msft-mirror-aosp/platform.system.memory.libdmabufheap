@@ -289,39 +289,19 @@ int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_ty
 int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
                                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                   void *legacy_ion_custom_data) {
-    auto it = fd_last_sync_type_.find(dmabuf_fd);
-    if (it != fd_last_sync_type_.end()) {
-        LOG(ERROR) << "CpuSyncEnd needs to be invoked for this fd first";
-        return -EINVAL;
-    }
-
     int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom,
                      legacy_ion_custom_data);
 
-    if (ret) {
-        PLOG(ERROR) << "CpuSyncStart() failure";
-    } else {
-        fd_last_sync_type_[dmabuf_fd] = sync_type;
-    }
+    if (ret) PLOG(ERROR) << "CpuSyncStart() failure";
     return ret;
 }
 
-int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd,
+int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type,
                                 const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
-                                void *legacy_ion_custom_data) {
-    auto it = fd_last_sync_type_.find(dmabuf_fd);
-    if (it == fd_last_sync_type_.end()) {
-        LOG(ERROR) << "CpuSyncStart() must be called before CpuSyncEnd()";
-        return -EINVAL;
-    }
-
-    int ret = DoSync(dmabuf_fd, false /* start */, it->second /* sync_type */,
-                     legacy_ion_cpu_sync_custom, legacy_ion_custom_data);
-    if (ret) {
-        PLOG(ERROR) << "CpuSyncEnd() failure";
-    } else {
-        fd_last_sync_type_.erase(it);
-    }
+                                void* legacy_ion_custom_data) {
+    int ret = DoSync(dmabuf_fd, false /* start */, sync_type, legacy_ion_cpu_sync_custom,
+                     legacy_ion_custom_data);
+    if (ret) PLOG(ERROR) << "CpuSyncEnd() failure";
 
     return ret;
 }
