@@ -27,6 +27,87 @@
 #include <android-base/unique_fd.h>
 #include <vintf/VintfObject.h>
 
+#include <thread>
+
+class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
+  public:
+    virtual void SetUp() { allocator = new BufferAllocator(); }
+
+    void DoAlloc(const std::string& heap_name) {
+        static const size_t kAllocSizeInBytes = 4096;
+        int map_fd = allocator->Alloc(heap_name, kAllocSizeInBytes);
+        ASSERT_GE(map_fd, 0);
+
+        void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+        ASSERT_TRUE(ptr != MAP_FAILED);
+
+        int ret = allocator->CpuSyncStart(map_fd, kSyncReadWrite);
+        ASSERT_EQ(0, ret);
+
+        ret = allocator->CpuSyncEnd(map_fd, kSyncReadWrite);
+        ASSERT_EQ(0, ret);
+
+        ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
+        ASSERT_EQ(0, close(map_fd));
+    }
+
+    void DoConcurrentAlloc() {
+        DoAlloc(kDmabufSystemHeapName);
+        DoAlloc(kDmabufSystemUncachedHeapName);
+    }
+
+    void DoConcurrentAllocWithMapName() {
+        allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
+                                    0 /* no mapping for non-legacy ion */,
+                                    ~0 /* legacy ion heap mask */, ION_FLAG_CACHED);
+        DoAlloc(kDmabufSystemHeapName);
+        allocator->MapNameToIonHeap(
+                kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
+                0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
+        DoAlloc(kDmabufSystemUncachedHeapName);
+    }
+
+    virtual void TearDown() { delete allocator; }
+
+    BufferAllocator* allocator = nullptr;
+};
+
+static constexpr size_t NUM_CONCURRENT_THREADS = 100;
+
+TEST_F(DmaBufHeapConcurrentAccessTest, ConcurrentAllocTest) {
+    using android::vintf::KernelVersion;
+
+    KernelVersion min_kernel_version = KernelVersion(5, 10, 0);
+    KernelVersion kernel_version =
+            android::vintf::VintfObject::GetInstance()
+                    ->getRuntimeInfo(android::vintf::RuntimeInfo::FetchFlag::CPU_VERSION)
+                    ->kernelVersion();
+    if (kernel_version < min_kernel_version) {
+        GTEST_SKIP();
+    }
+
+    std::vector<std::thread> threads(NUM_CONCURRENT_THREADS);
+    for (int i = 0; i < NUM_CONCURRENT_THREADS; i++) {
+        threads[i] = std::thread(&DmaBufHeapConcurrentAccessTest::DoConcurrentAlloc, this);
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+}
+
+TEST_F(DmaBufHeapConcurrentAccessTest, ConcurrentAllocWithMapNameTest) {
+    std::vector<std::thread> threads(NUM_CONCURRENT_THREADS);
+    for (int i = 0; i < NUM_CONCURRENT_THREADS; i++) {
+        threads[i] =
+                std::thread(&DmaBufHeapConcurrentAccessTest::DoConcurrentAllocWithMapName, this);
+    }
+
+    for (auto& thread : threads) {
+        thread.join();
+    }
+}
+
 DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
     /*
      * Legacy ion devices may have hardcoded heap IDs that do not
@@ -120,17 +201,15 @@ TEST_F(DmaBufHeapTest, Zeroed) {
         map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
         ASSERT_GE(map_fd, 0);
 
-        void* ptr = NULL;
-
-        ptr = mmap(NULL, kAllocSizeInBytes, PROT_WRITE, MAP_SHARED, map_fd, 0);
-        ASSERT_TRUE(ptr != NULL);
+        void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_WRITE, MAP_SHARED, map_fd, 0);
+        ASSERT_TRUE(ptr != MAP_FAILED);
 
         ret = allocator->CpuSyncStart(map_fd, kSyncWrite);
         ASSERT_EQ(0, ret);
 
         memset(ptr, 0xaa, kAllocSizeInBytes);
 
-        ret = allocator->CpuSyncEnd(map_fd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
@@ -144,9 +223,8 @@ TEST_F(DmaBufHeapTest, Zeroed) {
     map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
     ASSERT_GE(map_fd, 0);
 
-    void* ptr = NULL;
-    ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ, MAP_SHARED, map_fd, 0);
-    ASSERT_TRUE(ptr != NULL);
+    void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ, MAP_SHARED, map_fd, 0);
+    ASSERT_TRUE(ptr != MAP_FAILED);
 
     ret = allocator->CpuSyncStart(map_fd);
     ASSERT_EQ(0, ret);
@@ -167,72 +245,16 @@ TEST_F(DmaBufHeapTest, TestCpuSync) {
         int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
         ASSERT_GE(map_fd, 0);
 
-        void* ptr;
-        ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
-        ASSERT_TRUE(ptr != NULL);
+        void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+        ASSERT_TRUE(ptr != MAP_FAILED);
 
         int ret = allocator->CpuSyncStart(map_fd, sync_type);
         ASSERT_EQ(0, ret);
 
-        ret = allocator->CpuSyncEnd(map_fd);
+        ret = allocator->CpuSyncEnd(map_fd, sync_type);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
-        ASSERT_EQ(0, close(map_fd));
-    }
-}
-
-TEST_F(DmaBufHeapTest, TestCpuSyncMismatched) {
-    static const size_t kAllocSizeInBytes = 4096;
-    auto vec_sync_type = {kSyncRead, kSyncWrite, kSyncReadWrite};
-    for (auto sync_type : vec_sync_type) {
-        int map_fd1 = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd1, 0);
-
-        int map_fd2 = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd2, 0);
-
-        int ret = allocator->CpuSyncStart(map_fd1, sync_type);
-        ASSERT_EQ(0, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd2);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd1);
-        ASSERT_EQ(0, ret);
-
-        ASSERT_EQ(0, close(map_fd1));
-        ASSERT_EQ(0, close(map_fd2));
-    }
-}
-
-TEST_F(DmaBufHeapTest, TestCpuSyncMismatched2) {
-    static const size_t kAllocSizeInBytes = 4096;
-    auto vec_sync_type = {kSyncRead, kSyncWrite, kSyncReadWrite};
-    for (auto sync_type : vec_sync_type) {
-        int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
-        ASSERT_GE(map_fd, 0);
-
-        int ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(0, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(0, ret);
-
-        /* Should fail since it is missing a CpuSyncStart() */
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(0, ret);
-
-        /* Should fail since it is missing a CpuSyncEnd() */
-        ret = allocator->CpuSyncStart(map_fd, sync_type);
-        ASSERT_EQ(-EINVAL, ret);
-
-        ret = allocator->CpuSyncEnd(map_fd);
-        ASSERT_EQ(0, ret);
-
         ASSERT_EQ(0, close(map_fd));
     }
 }
@@ -258,16 +280,15 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
         int map_fd = allocator->Alloc(kDmabufSystemHeapName, size);
         ASSERT_GE(map_fd, 0);
 
-        void* ptr;
-        ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
-        ASSERT_TRUE(ptr != NULL);
+        void* ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+        ASSERT_TRUE(ptr != MAP_FAILED);
 
         int ret = allocator->CpuSyncStart(map_fd, kSyncWrite, CustomCpuSyncStart);
         ASSERT_EQ(0, ret);
 
         memset(ptr, 0xaa, size);
 
-        ret = allocator->CpuSyncEnd(map_fd, CustomCpuSyncEnd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite, CustomCpuSyncEnd);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, size));
@@ -304,9 +325,8 @@ TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     /*
      * Test that system heap can be mmapped by the CPU.
      */
-    void* ptr;
-    ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
-    ASSERT_TRUE(ptr != NULL);
+    void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
+    ASSERT_TRUE(ptr != MAP_FAILED);
 
     /*
      * Test that the allocated memory is zeroed.
