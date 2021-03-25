@@ -165,6 +165,14 @@ class BufferAllocator {
      */
     static std::unordered_set<std::string> GetDmabufHeapList();
 
+    /**
+     *
+     * Check if ION is supported on the device.
+     *
+     * @return true if /dev/ion is present on the device, otherwise false.
+     */
+    static bool CheckIonSupport();
+
   private:
     int OpenDmabufHeap(const std::string& name);
     void QueryIonHeaps();
