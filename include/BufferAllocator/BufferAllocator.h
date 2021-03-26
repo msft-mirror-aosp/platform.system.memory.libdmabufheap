@@ -81,6 +81,24 @@ class BufferAllocator {
      */
     int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
 
+    /* *
+     * Returns a dmabuf fd if the allocation in system heap(cached/uncached) is successful and
+     * an error code otherwise. Allocates in the 'system' heap if CPU access of
+     * the buffer is expected and 'system-uncached' otherwise. If the 'system-uncached'
+     * heap is not supported, falls back to the 'system' heap.
+     * For vendor defined heaps with a legacy ION interface(no heap query support),
+     * MapNameToIonMask() must be called prior to invocation of AllocSystem() to
+     * map names 'system'(and optionally 'system-uncached' if applicable) to an
+     * equivalent heap mask and heap flag configuration;
+     * configuration.
+     * @cpu_access: indicates if CPU access of the buffer is expected.
+     * @len: size of the allocation.
+     * @heap_flags: flags passed to heap.
+     * @legacy_align: alignment value used only by legacy ION
+     */
+    int AllocSystem(bool cpu_access, size_t len, unsigned int heap_flags = 0,
+                    size_t legacy_align = 0);
+
     /**
      * Optional custom callback for legacy ion implementation that can be specified as a
      * parameter to CpuSyncStart() and CpuSyncEnd(). Its first argument is an fd to /dev/ion.
@@ -146,6 +164,14 @@ class BufferAllocator {
      * @return the list of supported DMA-BUF heap names.
      */
     static std::unordered_set<std::string> GetDmabufHeapList();
+
+    /**
+     *
+     * Check if ION is supported on the device.
+     *
+     * @return true if /dev/ion is present on the device, otherwise false.
+     */
+    static bool CheckIonSupport();
 
   private:
     int OpenDmabufHeap(const std::string& name);
