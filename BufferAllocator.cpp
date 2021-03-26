@@ -252,6 +252,38 @@ int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
     return fd;
 }
 
+int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags,
+                                 size_t legacy_align) {
+    if (!cpu_access_needed) {
+        /*
+         * CPU does not need to access allocated buffer so we try to allocate in
+         * the 'system-uncached' heap after querying for its existence.
+         */
+        static bool uncached_dmabuf_system_heap_support = [this]() -> bool {
+            auto dmabuf_heap_list = this->GetDmabufHeapList();
+            return (dmabuf_heap_list.find(kDmabufSystemUncachedHeapName) != dmabuf_heap_list.end());
+        }();
+
+        if (uncached_dmabuf_system_heap_support)
+            return DmabufAlloc(kDmabufSystemUncachedHeapName, len);
+
+        static bool uncached_ion_system_heap_support = [this]() -> bool {
+            IonHeapConfig heap_config;
+            auto ret = this->GetIonConfig(kDmabufSystemUncachedHeapName, heap_config);
+            return (ret == 0);
+        }();
+
+        if (uncached_ion_system_heap_support)
+            return IonAlloc(kDmabufSystemUncachedHeapName, len, heap_flags, legacy_align);
+    }
+
+    /*
+     * Either 1) CPU needs to access allocated buffer OR 2) CPU does not need to
+     * access allocated buffer but the "system-uncached" heap is unsupported.
+     */
+    return Alloc(kDmabufSystemHeapName, len, heap_flags, legacy_align);
+}
+
 int BufferAllocator::LegacyIonCpuSync(unsigned int dmabuf_fd,
                                       const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                       void *legacy_ion_custom_data) {
@@ -320,4 +352,10 @@ std::unordered_set<std::string> BufferAllocator::GetDmabufHeapList() {
     }
 
     return heap_list;
+}
+
+bool BufferAllocator::CheckIonSupport() {
+    static bool ion_support = (access(kIonDevice, R_OK) == 0);
+
+    return ion_support;
 }
