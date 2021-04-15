@@ -30,10 +30,16 @@ void FreeDmabufHeapBufferAllocator(BufferAllocator* buffer_allocator) {
 };
 
 int DmabufHeapAlloc(BufferAllocator* buffer_allocator, const char* heap_name, size_t len,
-                    unsigned int heap_flags) {
+                    unsigned int heap_flags, size_t legacy_align) {
     if (!buffer_allocator)
         return -EINVAL;
-    return buffer_allocator->Alloc(heap_name, len, heap_flags);
+    return buffer_allocator->Alloc(heap_name, len, heap_flags, legacy_align);
+}
+
+int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
+                          unsigned int heap_flags, size_t legacy_align) {
+    if (!buffer_allocator) return -EINVAL;
+    return buffer_allocator->AllocSystem(cpu_access, len, heap_flags, legacy_align);
 }
 
 int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* heap_name,
@@ -56,9 +62,10 @@ int DmabufHeapCpuSyncStart(BufferAllocator* buffer_allocator, unsigned int dmabu
 }
 
 int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                         int (*legacy_ion_cpu_sync)(int, int, void *), void *custom_data) {
+                         SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
+                         void* custom_data) {
     if (!buffer_allocator)
         return -EINVAL;
-    return buffer_allocator->CpuSyncEnd(dmabuf_fd, legacy_ion_cpu_sync, custom_data);
+    return buffer_allocator->CpuSyncEnd(dmabuf_fd, sync_type, legacy_ion_cpu_sync, custom_data);
 }
 }
