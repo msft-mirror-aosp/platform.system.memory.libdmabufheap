@@ -68,4 +68,8 @@ int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_
         return -EINVAL;
     return buffer_allocator->CpuSyncEnd(dmabuf_fd, sync_type, legacy_ion_cpu_sync, custom_data);
 }
+
+bool CheckIonSupport() {
+    return BufferAllocator::CheckIonSupport();
+}
 }
