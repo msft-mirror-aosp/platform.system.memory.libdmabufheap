@@ -49,6 +49,8 @@ int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_
                          SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
                          void* legacy_ion_custom_data);
 
+bool CheckIonSupport();
+
 #ifdef __cplusplus
 }
 #endif
