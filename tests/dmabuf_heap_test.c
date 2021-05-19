@@ -143,6 +143,12 @@ void libdmabufheaptest(bool use_custom_callback, void *legacy_ion_custom_data) {
 int main(int argc, char* argv[]) {
     (void)argc;
     (void)argv;
+
+    if (CheckIonSupport())
+        printf("ION support detected\n");
+    else
+        printf("No ION support detected\n");
+
     custom_callback_data data = {.a = 1, .b = 2};
     printf("*****running with custom legacy ion cpu sync callback, with custom data****\n");
     libdmabufheaptest(true, &data);
