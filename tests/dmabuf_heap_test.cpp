@@ -116,12 +116,14 @@ DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
      * available heap when asked to allocate from the system or system-uncached
      * heap.
      */
-    allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
-                                0 /* no mapping for non-legacy ion */,
-                                ~0 /* legacy ion heap mask */);
-    allocator->MapNameToIonHeap(kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
-                                0 /* no mapping for non-legacy ion */,
-                                ~0 /* legacy ion heap mask */);
+    if (BufferAllocator::CheckIonSupport()) {
+        allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
+                                    0 /* no mapping for non-legacy ion */,
+                                    ~0 /* legacy ion heap mask */);
+        allocator->MapNameToIonHeap(
+                kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
+                0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
+    }
 }
 
 TEST_F(DmaBufHeapTest, Allocate) {
