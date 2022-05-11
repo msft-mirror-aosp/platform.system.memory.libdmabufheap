@@ -116,12 +116,14 @@ DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
      * available heap when asked to allocate from the system or system-uncached
      * heap.
      */
-    allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
-                                0 /* no mapping for non-legacy ion */,
-                                ~0 /* legacy ion heap mask */);
-    allocator->MapNameToIonHeap(kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
-                                0 /* no mapping for non-legacy ion */,
-                                ~0 /* legacy ion heap mask */);
+    if (BufferAllocator::CheckIonSupport()) {
+        allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
+                                    0 /* no mapping for non-legacy ion */,
+                                    ~0 /* legacy ion heap mask */);
+        allocator->MapNameToIonHeap(
+                kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
+                0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
+    }
 }
 
 TEST_F(DmaBufHeapTest, Allocate) {
@@ -283,7 +285,7 @@ TEST_F(DmaBufHeapTest, TestDeviceCapabilityCheck) {
 TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     using android::vintf::KernelVersion;
 
-    if (android::base::GetIntProperty("ro.product.first_api_level", 0) < __ANDROID_API_S__) {
+    if (android::base::GetIntProperty("ro.vendor.api_level", 0) < __ANDROID_API_S__) {
         GTEST_SKIP();
     }
 
