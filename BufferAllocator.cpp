@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <unordered_set>
