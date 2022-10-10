@@ -225,7 +225,22 @@ int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len) {
         return ret;
     }
 
+    if (heap_data.fd >= 0) {
+        if (DmabufSetName(heap_data.fd, heap_name))
+            PLOG(WARNING) << "Unable to name DMA buffer for: " << heap_name;
+    }
+
     return heap_data.fd;
+}
+
+int BufferAllocator::DmabufSetName(unsigned int dmabuf_fd, const std::string& name) {
+    /* dma_buf_set_name truncates instead of returning an error */
+    if (name.length() > DMA_BUF_NAME_LEN) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+
+    return TEMP_FAILURE_RETRY(ioctl(dmabuf_fd, DMA_BUF_SET_NAME_B, name.c_str()));
 }
 
 int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len,
