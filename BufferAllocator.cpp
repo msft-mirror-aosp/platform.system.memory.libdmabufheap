@@ -340,7 +340,7 @@ int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_ty
 int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
                                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                   void *legacy_ion_custom_data) {
-    int ret = DoSync(dmabuf_fd, true /* start */, sync_type, legacy_ion_cpu_sync_custom,
+    int ret = DoSync(dmabuf_fd, true, sync_type, legacy_ion_cpu_sync_custom,
                      legacy_ion_custom_data);
 
     if (ret) PLOG(ERROR) << "CpuSyncStart() failure";
@@ -350,7 +350,7 @@ int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
 int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type,
                                 const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                 void* legacy_ion_custom_data) {
-    int ret = DoSync(dmabuf_fd, false /* start */, sync_type, legacy_ion_cpu_sync_custom,
+    int ret = DoSync(dmabuf_fd, false, sync_type, legacy_ion_cpu_sync_custom,
                      legacy_ion_custom_data);
     if (ret) PLOG(ERROR) << "CpuSyncEnd() failure";
 
