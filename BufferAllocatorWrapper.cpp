@@ -36,6 +36,13 @@ int DmabufHeapAlloc(BufferAllocator* buffer_allocator, const char* heap_name, si
     return buffer_allocator->Alloc(heap_name, len, heap_flags, legacy_align);
 }
 
+int DmabufSetName(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
+                  const char* name) {
+    if (!buffer_allocator)
+        return -EINVAL;
+    return buffer_allocator->DmabufSetName(dmabuf_fd, name);
+}
+
 int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
                           unsigned int heap_flags, size_t legacy_align) {
     if (!buffer_allocator) return -EINVAL;
