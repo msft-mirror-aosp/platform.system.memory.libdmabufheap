@@ -34,6 +34,9 @@ void FreeDmabufHeapBufferAllocator(BufferAllocator* buffer_allocator);
 
 int DmabufHeapAlloc(BufferAllocator* buffer_allocator, const char* heap_name, size_t len,
                     unsigned int heap_flags, size_t legacy_align);
+
+int DmabufSetName(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd, const char* name);
+
 int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
                           unsigned int heap_flags, size_t legacy_align);
 
