@@ -195,7 +195,7 @@ class BufferAllocator {
                          unsigned int ion_heap_flags = 0);
     void LogInterface(const std::string& interface);
     int IonAlloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
-    int DmabufAlloc(const std::string& heap_name, size_t len);
+    int DmabufAlloc(const std::string& heap_name, size_t len, int fd);
 
     struct IonHeapConfig {
         unsigned int mask;
