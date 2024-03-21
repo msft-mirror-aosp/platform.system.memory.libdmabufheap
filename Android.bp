@@ -27,11 +27,6 @@ cc_library {
     recovery_available: true,
     vendor_available: true,
 
-    vndk: {
-        enabled: true,
-        support_system_process: true,
-    },
-
     // Added because codec2 is double_loadable.
     // See b/147147883, b/147147992
     double_loadable:true,
