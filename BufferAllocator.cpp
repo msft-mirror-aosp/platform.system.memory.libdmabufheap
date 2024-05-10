@@ -210,8 +210,7 @@ int BufferAllocator::GetIonConfig(const std::string& heap_name, IonHeapConfig& h
     return ret;
 }
 
-int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len) {
-    int fd = OpenDmabufHeap(heap_name);
+int BufferAllocator::DmabufAlloc(const std::string& heap_name, size_t len, int fd) {
     if (fd < 0) return fd;
 
     struct dma_heap_allocation_data heap_data{
@@ -263,12 +262,14 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len,
 
 int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
                            unsigned int heap_flags, size_t legacy_align) {
-    int fd = DmabufAlloc(heap_name, len);
+    int dma_buf_heap_fd = OpenDmabufHeap(heap_name);
+    if (dma_buf_heap_fd >= 0) return DmabufAlloc(heap_name, len, dma_buf_heap_fd);
 
-    if (fd < 0)
-        fd = IonAlloc(heap_name, len, heap_flags, legacy_align);
-
-    return fd;
+    /*
+     * Swap back to ion only if we failed to allocate for a dma-buffer heap
+     * that doesn't exist.
+     */
+    return IonAlloc(heap_name, len, heap_flags, legacy_align);
 }
 
 int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags,
@@ -283,8 +284,12 @@ int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned in
             return (dmabuf_heap_list.find(kDmabufSystemUncachedHeapName) != dmabuf_heap_list.end());
         }();
 
-        if (uncached_dmabuf_system_heap_support)
-            return DmabufAlloc(kDmabufSystemUncachedHeapName, len);
+        if (uncached_dmabuf_system_heap_support) {
+            int dma_buf_heap_fd = OpenDmabufHeap(kDmabufSystemUncachedHeapName);
+            return (dma_buf_heap_fd < 0)
+                           ? dma_buf_heap_fd
+                           : DmabufAlloc(kDmabufSystemUncachedHeapName, len, dma_buf_heap_fd);
+        }
 
         static bool uncached_ion_system_heap_support = [this]() -> bool {
             IonHeapConfig heap_config;
