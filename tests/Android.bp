@@ -25,7 +25,6 @@ cc_defaults {
         "-Werror",
     ],
     static_libs: [
-        "libc++fs",
         "libbase",
         "liblog",
     ],
