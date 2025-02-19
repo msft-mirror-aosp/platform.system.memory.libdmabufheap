@@ -20,12 +20,13 @@
 
 #include <android-base/unique_fd.h>
 #include <linux/ion_4.12.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 
-#include <cstdint>
+#include <functional>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
