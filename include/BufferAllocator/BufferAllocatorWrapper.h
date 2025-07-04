@@ -28,7 +28,7 @@ typedef class BufferAllocator BufferAllocator;
 typedef struct BufferAllocator BufferAllocator;
 #endif
 
-BufferAllocator* CreateDmabufHeapBufferAllocator();
+BufferAllocator* CreateDmabufHeapBufferAllocator(void);
 
 void FreeDmabufHeapBufferAllocator(BufferAllocator* buffer_allocator);
 
@@ -52,7 +52,7 @@ int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_
                          SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
                          void* legacy_ion_custom_data);
 
-bool CheckIonSupport();
+bool CheckIonSupport(void);
 
 #ifdef __cplusplus
 }
