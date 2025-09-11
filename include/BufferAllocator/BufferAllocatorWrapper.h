@@ -40,6 +40,7 @@ int DmabufSetName(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd, con
 int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
                           unsigned int heap_flags, size_t legacy_align);
 
+[[deprecated("ION support will be removed in 2026")]]
 int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* heap_name,
                                const char* ion_heap_name, unsigned int ion_heap_flags,
                                unsigned int legacy_ion_heap_mask, unsigned legacy_ion_heap_flags);
@@ -52,7 +53,7 @@ int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_
                          SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
                          void* legacy_ion_custom_data);
 
-bool CheckIonSupport(void);
+[[deprecated("ION support will be removed in 2026")]] bool CheckIonSupport(void);
 
 #ifdef __cplusplus
 }
