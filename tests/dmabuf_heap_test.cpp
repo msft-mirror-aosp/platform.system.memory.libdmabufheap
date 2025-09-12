@@ -19,6 +19,7 @@
 
 #include <linux/ion.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include <gtest/gtest.h>
 
@@ -34,7 +35,7 @@ class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
     virtual void SetUp() { allocator = new BufferAllocator(); }
 
     void DoAlloc(bool cpu_access_needed) {
-        static const size_t kAllocSizeInBytes = 4096;
+        static const size_t kAllocSizeInBytes = getpagesize();
         int map_fd = allocator->AllocSystem(cpu_access_needed, kAllocSizeInBytes);
         ASSERT_GE(map_fd, 0);
 
@@ -127,7 +128,8 @@ DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
 }
 
 TEST_F(DmaBufHeapTest, Allocate) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
+    static const size_t allocationSizes[] =
+        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (bool cpu_access_needed : {false, true}) {
         for (size_t size : allocationSizes) {
             SCOPED_TRACE(::testing::Message()
@@ -140,7 +142,8 @@ TEST_F(DmaBufHeapTest, Allocate) {
 }
 
 TEST_F(DmaBufHeapTest, AllocateCachedNeedsSync) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
+    static const size_t allocationSizes[] =
+        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (size_t size : allocationSizes) {
         SCOPED_TRACE(::testing::Message()
                      << "heap: " << kDmabufSystemHeapName << " size: " << size);
@@ -152,7 +155,8 @@ TEST_F(DmaBufHeapTest, AllocateCachedNeedsSync) {
 }
 
 TEST_F(DmaBufHeapTest, RepeatedAllocate) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
+    static const size_t allocationSizes[] =
+        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (bool cpu_access_needed : {false, true}) {
         for (size_t size : allocationSizes) {
             SCOPED_TRACE(::testing::Message()
@@ -171,7 +175,7 @@ TEST_F(DmaBufHeapTest, RepeatedAllocate) {
  * Make sure all heaps always return zeroed pages
  */
 TEST_F(DmaBufHeapTest, Zeroed) {
-    static const size_t kAllocSizeInBytes = 4096;
+    static const size_t kAllocSizeInBytes = getpagesize();
     static const size_t kNumFds = 16;
 
     auto zeroes_ptr = std::make_unique<char[]>(kAllocSizeInBytes);
@@ -219,7 +223,7 @@ TEST_F(DmaBufHeapTest, Zeroed) {
 }
 
 TEST_F(DmaBufHeapTest, TestCpuSync) {
-    static const size_t kAllocSizeInBytes = 4096;
+    static const size_t kAllocSizeInBytes = getpagesize();
     auto vec_sync_type = {kSyncRead, kSyncWrite, kSyncReadWrite};
     for (auto sync_type : vec_sync_type) {
         int map_fd = allocator->Alloc(kDmabufSystemHeapName, kAllocSizeInBytes);
@@ -252,7 +256,8 @@ int CustomCpuSyncEnd(int /* ion_fd */, int /* dma_buf fd */,
 }
 
 TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
-    static const size_t allocationSizes[] = {4 * 1024, 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
+    static const size_t allocationSizes[] =
+        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
     for (size_t size : allocationSizes) {
         SCOPED_TRACE(::testing::Message()
                      << "heap: " << kDmabufSystemHeapName << " size: " << size);
@@ -302,7 +307,7 @@ TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
     ASSERT_TRUE(heap_list.find("system") != heap_list.end());
 
     for (bool cpu_access_needed : {false, true}) {
-        static const size_t kAllocSizeInBytes = 4096;
+        static const size_t kAllocSizeInBytes = getpagesize();
         /*
          * Test that system heap can be allocated from.
          */
