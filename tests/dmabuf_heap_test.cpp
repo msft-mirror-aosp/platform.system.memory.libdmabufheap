@@ -17,16 +17,9 @@
 #include <BufferAllocator/BufferAllocator.h>
 #include "dmabuf_heap_test.h"
 
-#include <linux/ion.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
 #include <gtest/gtest.h>
-
-#include <android-base/logging.h>
-#include <android-base/properties.h>
-#include <android-base/unique_fd.h>
-#include <vintf/VintfObject.h>
 
 #include <thread>
 
@@ -57,17 +50,6 @@ class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
         DoAlloc(false /* cpu_access_needed */);
     }
 
-    void DoConcurrentAllocWithMapName() {
-        allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
-                                    0 /* no mapping for non-legacy ion */,
-                                    ~0 /* legacy ion heap mask */, ION_FLAG_CACHED);
-        DoAlloc(true /* cpu_access_needed */);
-        allocator->MapNameToIonHeap(
-                kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
-                0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
-        DoAlloc(false /* cpu_access_needed */);
-    }
-
     virtual void TearDown() { delete allocator; }
 
     BufferAllocator* allocator = nullptr;
@@ -76,17 +58,6 @@ class DmaBufHeapConcurrentAccessTest : public ::testing::Test {
 static constexpr size_t NUM_CONCURRENT_THREADS = 100;
 
 TEST_F(DmaBufHeapConcurrentAccessTest, ConcurrentAllocTest) {
-    using android::vintf::KernelVersion;
-
-    KernelVersion min_kernel_version = KernelVersion(5, 10, 0);
-    KernelVersion kernel_version =
-            android::vintf::VintfObject::GetInstance()
-                    ->getRuntimeInfo(android::vintf::RuntimeInfo::FetchFlag::CPU_VERSION)
-                    ->kernelVersion();
-    if (kernel_version < min_kernel_version) {
-        GTEST_SKIP();
-    }
-
     std::vector<std::thread> threads(NUM_CONCURRENT_THREADS);
     for (int i = 0; i < NUM_CONCURRENT_THREADS; i++) {
         threads[i] = std::thread(&DmaBufHeapConcurrentAccessTest::DoConcurrentAlloc, this);
@@ -97,34 +68,7 @@ TEST_F(DmaBufHeapConcurrentAccessTest, ConcurrentAllocTest) {
     }
 }
 
-TEST_F(DmaBufHeapConcurrentAccessTest, ConcurrentAllocWithMapNameTest) {
-    std::vector<std::thread> threads(NUM_CONCURRENT_THREADS);
-    for (int i = 0; i < NUM_CONCURRENT_THREADS; i++) {
-        threads[i] =
-                std::thread(&DmaBufHeapConcurrentAccessTest::DoConcurrentAllocWithMapName, this);
-    }
-
-    for (auto& thread : threads) {
-        thread.join();
-    }
-}
-
 DmaBufHeapTest::DmaBufHeapTest() : allocator(new BufferAllocator()) {
-    /*
-     * Legacy ion devices may have hardcoded heap IDs that do not
-     * match the ion UAPI header. Map heap name 'system'/'system-uncached' to a heap mask
-     * of all 1s so that these devices will allocate from the first
-     * available heap when asked to allocate from the system or system-uncached
-     * heap.
-     */
-    if (BufferAllocator::CheckIonSupport()) {
-        allocator->MapNameToIonHeap(kDmabufSystemHeapName, "" /* no mapping for non-legacy */,
-                                    0 /* no mapping for non-legacy ion */,
-                                    ~0 /* legacy ion heap mask */);
-        allocator->MapNameToIonHeap(
-                kDmabufSystemUncachedHeapName, "" /* no mapping for non-legacy */,
-                0 /* no mapping for non-legacy ion */, ~0 /* legacy ion heap mask */);
-    }
 }
 
 TEST_F(DmaBufHeapTest, Allocate) {
@@ -138,19 +82,6 @@ TEST_F(DmaBufHeapTest, Allocate) {
             ASSERT_GE(fd, 0);
             ASSERT_EQ(close(fd), 0);  // free the buffer
         }
-    }
-}
-
-TEST_F(DmaBufHeapTest, AllocateCachedNeedsSync) {
-    static const size_t allocationSizes[] =
-        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemHeapName << " size: " << size);
-        int fd = allocator->Alloc(kDmabufSystemHeapName, size, ION_FLAG_CACHED_NEEDS_SYNC
-                                  /* ion heap flags will be ignored if using dmabuf heaps */);
-        ASSERT_GE(fd, 0);
-        ASSERT_EQ(close(fd), 0);  // free the buffer
     }
 }
 
@@ -243,66 +174,13 @@ TEST_F(DmaBufHeapTest, TestCpuSync) {
     }
 }
 
-int CustomCpuSyncStart(int /* ion_fd */, int /* dma_buf fd */,
-                       void* /* custom_data pointer */) {
-    LOG(INFO) << "In custom cpu sync start callback";
-    return 0;
-}
-
-int CustomCpuSyncEnd(int /* ion_fd */, int /* dma_buf fd */,
-                     void* /* custom_data pointer */) {
-    LOG(INFO) << "In custom cpu sync end callback";
-    return 0;
-}
-
-TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
-    static const size_t allocationSizes[] =
-        {(size_t)getpagesize(), 64 * 1024, 1024 * 1024, 2 * 1024 * 1024};
-    for (size_t size : allocationSizes) {
-        SCOPED_TRACE(::testing::Message()
-                     << "heap: " << kDmabufSystemHeapName << " size: " << size);
-
-        int map_fd = allocator->Alloc(kDmabufSystemHeapName, size);
-        ASSERT_GE(map_fd, 0);
-
-        void* ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
-        ASSERT_TRUE(ptr != MAP_FAILED);
-
-        int ret = allocator->CpuSyncStart(map_fd, kSyncWrite, CustomCpuSyncStart, nullptr);
-        ASSERT_EQ(0, ret);
-
-        memset(ptr, 0xaa, size);
-
-        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite, CustomCpuSyncEnd, nullptr);
-        ASSERT_EQ(0, ret);
-
-        ASSERT_EQ(0, munmap(ptr, size));
-        ASSERT_EQ(0, close(map_fd));
-    }
-}
-
 TEST_F(DmaBufHeapTest, TestDeviceCapabilityCheck) {
     auto heap_list = allocator->GetDmabufHeapList();
 
-    ASSERT_TRUE(!heap_list.empty() || BufferAllocator::CheckIonSupport());
+    ASSERT_TRUE(!heap_list.empty());
 }
 
 TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
-    using android::vintf::KernelVersion;
-
-    if (android::base::GetIntProperty("ro.vendor.api_level", 0) < __ANDROID_API_S__) {
-        GTEST_SKIP();
-    }
-
-    KernelVersion min_kernel_version = KernelVersion(5, 10, 0);
-    KernelVersion kernel_version =
-            android::vintf::VintfObject::GetInstance()
-                    ->getRuntimeInfo(android::vintf::RuntimeInfo::FetchFlag::CPU_VERSION)
-                    ->kernelVersion();
-    if (kernel_version < min_kernel_version) {
-        GTEST_SKIP();
-    }
-
     auto heap_list = allocator->GetDmabufHeapList();
     ASSERT_TRUE(heap_list.find("system") != heap_list.end());
 
