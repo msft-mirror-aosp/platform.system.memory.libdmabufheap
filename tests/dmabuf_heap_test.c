@@ -79,21 +79,21 @@ void libdmabufheaptest(bool use_custom_callback, void *legacy_ion_custom_data) {
     /*
      * Test the DmabufHeapAllocSystem() APIs.
      */
-    fd = DmabufHeapAllocSystem(bufferAllocator, true /* cpu_access */, len, 0, 0);
+    fd = DmabufHeapAllocSystem2(bufferAllocator, true /* cpu_access */, len, 0);
     if (fd < 0) {
         printf("DmabufHeapAllocSystem() failed: %d cpu_access: true\n", fd);
         return;
     }
     close(fd);
 
-    fd = DmabufHeapAllocSystem(bufferAllocator, false /* cpu_access */, len, 0, 0);
+    fd = DmabufHeapAllocSystem2(bufferAllocator, false /* cpu_access */, len, 0);
     if (fd < 0) {
         printf("DmabufHeapAllocSystem() failed: %d cpu_access: false\n", fd);
         return;
     }
     close(fd);
 
-    fd = DmabufHeapAlloc(bufferAllocator, kDmabufSystemHeapName, len, 0, 0);
+    fd = DmabufHeapAlloc2(bufferAllocator, kDmabufSystemHeapName, len, 0);
     if (fd < 0) {
         printf("Alloc failed: %d\n", fd);
         return;

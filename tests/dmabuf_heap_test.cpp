@@ -206,12 +206,12 @@ TEST_F(DmaBufHeapTest, Zeroed) {
     void* ptr = mmap(NULL, kAllocSizeInBytes, PROT_READ, MAP_SHARED, map_fd, 0);
     ASSERT_TRUE(ptr != MAP_FAILED);
 
-    ret = allocator->CpuSyncStart(map_fd);
+    ret = allocator->CpuSyncStart(map_fd, kSyncRead);
     ASSERT_EQ(0, ret);
 
     ASSERT_EQ(0, memcmp(ptr, zeroes_ptr.get(), kAllocSizeInBytes));
 
-    ret = allocator->CpuSyncEnd(map_fd);
+    ret = allocator->CpuSyncEnd(map_fd, kSyncRead);
     ASSERT_EQ(0, ret);
 
     ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
@@ -263,12 +263,12 @@ TEST_F(DmaBufHeapTest, TestCustomLegacyIonSyncCallback) {
         void* ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
         ASSERT_TRUE(ptr != MAP_FAILED);
 
-        int ret = allocator->CpuSyncStart(map_fd, kSyncWrite, CustomCpuSyncStart);
+        int ret = allocator->CpuSyncStart(map_fd, kSyncWrite, CustomCpuSyncStart, nullptr);
         ASSERT_EQ(0, ret);
 
         memset(ptr, 0xaa, size);
 
-        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite, CustomCpuSyncEnd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncWrite, CustomCpuSyncEnd, nullptr);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, size));
@@ -320,12 +320,12 @@ TEST_F(DmaBufHeapTest, TestDmabufSystemHeapCompliance) {
          * Test that the allocated memory is zeroed.
          */
         auto zeroes_ptr = std::make_unique<char[]>(kAllocSizeInBytes);
-        int ret = allocator->CpuSyncStart(map_fd);
+        int ret = allocator->CpuSyncStart(map_fd, kSyncRead);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, memcmp(ptr, zeroes_ptr.get(), kAllocSizeInBytes));
 
-        ret = allocator->CpuSyncEnd(map_fd);
+        ret = allocator->CpuSyncEnd(map_fd, kSyncRead);
         ASSERT_EQ(0, ret);
 
         ASSERT_EQ(0, munmap(ptr, kAllocSizeInBytes));
