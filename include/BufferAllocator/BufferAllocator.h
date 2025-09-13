@@ -60,6 +60,7 @@ class BufferAllocator {
      * @legacy_ion_heap_flags: flags to be passed to the legacy ion heap for it
      * to function equivalently to dmabuf heap @heap_name.
      */
+    [[deprecated("ION support will be removed in 2026")]]
     int MapNameToIonHeap(const std::string& heap_name, const std::string& ion_heap_name,
                          unsigned int ion_heap_flags = 0, unsigned int legacy_ion_heap_mask = 0,
                          unsigned int legacy_ion_heap_flags = 0);
@@ -110,6 +111,7 @@ class BufferAllocator {
      * with a dup of ion_fd_ as its first argument. Return 0 on success and error code otherwise
      * which will become the return value for CpuSyncStart() and CpuSyncEnd().
      */
+    [[deprecated("ION support will be removed in 2026")]]
     typedef std::function<int(int, int, void *)> CustomCpuSyncLegacyIon;
 
     /**
@@ -170,7 +172,7 @@ class BufferAllocator {
      *
      * @return true if /dev/ion is present on the device, otherwise false.
      */
-    static bool CheckIonSupport();
+    [[deprecated("ION support will be removed in 2026")]] static bool CheckIonSupport();
 
     /**
      * Set the name of a dma buffer.

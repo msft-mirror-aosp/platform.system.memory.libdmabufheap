@@ -72,7 +72,10 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
 
     std::string heap_path = kDmaHeapRoot + heap_name;
     int fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDONLY | O_CLOEXEC));
-    if (fd < 0) return -errno;
+    if (fd < 0) {
+        if (ion_fd_ < 0) PLOG(ERROR) << "Could not open DMA-BUF heap named: " << heap_name;
+        return -errno;
+    }
 
     LOG(INFO) << "Using DMA-BUF heap named: " << heap_name;
 
@@ -268,9 +271,11 @@ int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
 
     /*
      * Swap back to ion only if we failed to allocate for a dma-buffer heap
-     * that doesn't exist.
+     * that doesn't exist, and we have already detected ion support is present.
      */
-    return IonAlloc(heap_name, len, heap_flags, legacy_align);
+    if (ion_fd_ >= 0) return IonAlloc(heap_name, len, heap_flags, legacy_align);
+
+    return -1;
 }
 
 int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags,
@@ -298,7 +303,7 @@ int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned in
             return (ret == 0);
         }();
 
-        if (uncached_ion_system_heap_support)
+        if (ion_fd_ >= 0 && uncached_ion_system_heap_support)
             return IonAlloc(kDmabufSystemUncachedHeapName, len, heap_flags, legacy_align);
     }
 
