@@ -79,7 +79,11 @@ class BufferAllocator {
      * @heap_flags: flags passed to heap.
      * @legacy_align: alignment value used only by legacy ION
      */
-    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0, size_t legacy_align = 0);
+    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags = 0);
+
+    [[deprecated("ION support will be removed in 2026")]]
+    int Alloc(const std::string& heap_name, size_t len, unsigned int heap_flags,
+              size_t legacy_align);
 
     /* *
      * Returns a dmabuf fd if the allocation in system heap(cached/uncached) is successful and
@@ -96,8 +100,11 @@ class BufferAllocator {
      * @heap_flags: flags passed to heap.
      * @legacy_align: alignment value used only by legacy ION
      */
-    int AllocSystem(bool cpu_access, size_t len, unsigned int heap_flags = 0,
-                    size_t legacy_align = 0);
+    int AllocSystem(bool cpu_access, size_t len, unsigned int heap_flags = 0);
+
+    [[deprecated("ION support will be removed in 2026")]]
+    int AllocSystem(bool cpu_access, size_t len, unsigned int heap_flags,
+                    size_t legacy_align);
 
     /**
      * Optional custom callback for legacy ion implementation that can be specified as a
@@ -132,9 +139,12 @@ class BufferAllocator {
      *
      * Returns 0  on success and an error code otherwise.
      */
-    int CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type = kSyncRead,
-                     const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync = nullptr,
-                     void *legacy_ion_custom_data = nullptr);
+    int CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type);
+
+    [[deprecated("ION support will be removed in 2026")]]
+    int CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
+                     const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync,
+                     void *legacy_ion_custom_data);
 
     /**
      * Must be invoked once CPU is done accessing the allocated memory.
@@ -155,9 +165,12 @@ class BufferAllocator {
      *
      * Returns 0 on success and an error code otherwise.
      */
-    int CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type = kSyncRead,
-                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync = nullptr,
-                   void* legacy_ion_custom_data = nullptr);
+    int CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type);
+
+    [[deprecated("ION support will be removed in 2026")]]
+    int CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type,
+                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync,
+                   void* legacy_ion_custom_data);
 
     /**
      * Query supported DMA-BUF heaps.

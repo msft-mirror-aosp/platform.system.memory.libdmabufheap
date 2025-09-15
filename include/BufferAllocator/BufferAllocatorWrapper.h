@@ -32,11 +32,19 @@ BufferAllocator* CreateDmabufHeapBufferAllocator(void);
 
 void FreeDmabufHeapBufferAllocator(BufferAllocator* buffer_allocator);
 
+int DmabufHeapAlloc2(BufferAllocator* buffer_allocator, const char* heap_name, size_t len,
+                    unsigned int heap_flags);
+
+[[deprecated("ION support will be removed in 2026")]]
 int DmabufHeapAlloc(BufferAllocator* buffer_allocator, const char* heap_name, size_t len,
                     unsigned int heap_flags, size_t legacy_align);
 
 int DmabufSetName(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd, const char* name);
 
+int DmabufHeapAllocSystem2(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
+                          unsigned int heap_flags);
+
+[[deprecated("ION support will be removed in 2026")]]
 int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
                           unsigned int heap_flags, size_t legacy_align);
 
@@ -45,10 +53,18 @@ int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* he
                                const char* ion_heap_name, unsigned int ion_heap_flags,
                                unsigned int legacy_ion_heap_mask, unsigned legacy_ion_heap_flags);
 
+int DmabufHeapCpuSyncStart2(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
+                           SyncType sync_type);
+
+[[deprecated("ION support will be removed in 2026")]]
 int DmabufHeapCpuSyncStart(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
                            SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void *),
                            void *legacy_ion_custom_data);
 
+int DmabufHeapCpuSyncEnd2(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
+                         SyncType sync_type);
+
+[[deprecated("ION support will be removed in 2026")]]
 int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
                          SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
                          void* legacy_ion_custom_data);
