@@ -15,13 +15,41 @@
  */
 
 #include <BufferAllocator/BufferAllocatorWrapper.h>
+#include <errno.h>
+#include <ion/ion.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-void libdmabufheaptest() {
+typedef struct {
+    int a;
+    int b;
+} custom_callback_data;
+
+int legacy_ion_custom_callback(int ion_fd, int dma_buf_fd,
+                                void *legacy_ion_custom_data) {
+    int ret = 0;
+    custom_callback_data *data;
+    (void) dma_buf_fd;
+    if (!ion_is_legacy(ion_fd)) {
+        perror("error in legacy ion custom callback");
+        ret = errno;
+    } else {
+        printf("in custom legacy ion cpu sync callback\n");
+        if (legacy_ion_custom_data) {
+            data = (custom_callback_data *) legacy_ion_custom_data;
+            printf("custom data was supplied to ion cpu sync callback: a = %d, b = %d\n",
+                   data->a, data->b);
+        }
+    }
+
+    return ret;
+}
+
+void libdmabufheaptest(bool use_custom_callback, void *legacy_ion_custom_data) {
     const size_t len = 1024 * 1024;
     int fd = -1, ret = 0;
     size_t i = 0;
@@ -30,6 +58,21 @@ void libdmabufheaptest() {
     BufferAllocator* bufferAllocator = CreateDmabufHeapBufferAllocator();
     if (!bufferAllocator) {
         printf("unable to get allocator\n");
+        return;
+    }
+
+    /*
+     * Legacy ion devices may have hardcoded heap IDs that do not
+     * match the ion UAPI header. Map heap name 'system' to a heap mask
+     * of all 1s so that these devices will allocate from the first
+     * available heap when asked to allocate from a heap of name 'system'.
+     */
+    ret = MapDmabufHeapNameToIonHeap(bufferAllocator, kDmabufSystemHeapName,
+                                     "" /* no mapping for non-legacy */,
+                                     0 /* no mapping for non-legacy ion */,
+                                     ~0 /* legacy ion heap mask */, 0 /* legacy ion heap flag */);
+    if (ret < 0) {
+        printf("MapDmabufHeapNameToIonHeap failed: %d\n", ret);
         return;
     }
 
@@ -62,7 +105,9 @@ void libdmabufheaptest() {
         return;
     }
 
-    ret = DmabufHeapCpuSyncStart2(bufferAllocator, fd, kSyncReadWrite);
+    ret = DmabufHeapCpuSyncStart(bufferAllocator, fd, kSyncReadWrite,
+                                 use_custom_callback ? legacy_ion_custom_callback : NULL,
+                                 legacy_ion_custom_data);
     if (ret) {
         printf("DmabufHeapCpuSyncStart failed: %d\n", ret);
         return;
@@ -80,7 +125,9 @@ void libdmabufheaptest() {
         }
     }
 
-    ret = DmabufHeapCpuSyncEnd2(bufferAllocator, fd, kSyncReadWrite);
+    ret = DmabufHeapCpuSyncEnd(bufferAllocator, fd, kSyncReadWrite,
+                               use_custom_callback ? legacy_ion_custom_callback : NULL,
+                               legacy_ion_custom_data);
     if (ret) {
         printf("DmabufHeapCpuSyncEnd failed: %d\n", ret);
         return;
@@ -93,7 +140,23 @@ void libdmabufheaptest() {
     printf("PASSED\n");
 }
 
-int main(int, char*[]) {
-    libdmabufheaptest();
+int main(int argc, char* argv[]) {
+    (void)argc;
+    (void)argv;
+
+    if (CheckIonSupport())
+        printf("ION support detected\n");
+    else
+        printf("No ION support detected\n");
+
+    custom_callback_data data = {.a = 1, .b = 2};
+    printf("*****running with custom legacy ion cpu sync callback, with custom data****\n");
+    libdmabufheaptest(true, &data);
+    printf("*****running with custom legacy ion cpu sync callback, without custom data****\n");
+    libdmabufheaptest(true, NULL);
+    printf("****running without custom legacy ion cpu sync callback, with custom data****\n");
+    libdmabufheaptest(false, &data);
+    printf("****running without custom legacy ion cpu sync callback, without custom data****\n");
+    libdmabufheaptest(false, NULL);
     return 0;
 }
