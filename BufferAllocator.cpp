@@ -66,8 +66,6 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
         return -errno;
     }
 
-    LOG(INFO) << "Using DMA-BUF heap named: " << heap_name;
-
     auto ret = dmabuf_heap_fds_.insert({heap_name, android::base::unique_fd(fd)});
     CHECK(ret.second);
     return fd;
