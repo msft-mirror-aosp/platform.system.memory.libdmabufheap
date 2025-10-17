@@ -35,10 +35,10 @@ int DmabufHeapAlloc2(BufferAllocator* buffer_allocator, const char* heap_name, s
     return buffer_allocator->Alloc(heap_name, len, heap_flags);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
 int DmabufHeapAlloc(BufferAllocator* buffer_allocator, const char* heap_name, size_t len,
-                    unsigned int heap_flags, size_t) {
-    return DmabufHeapAlloc2(buffer_allocator, heap_name, len, heap_flags);
+                    unsigned int heap_flags, size_t legacy_align) {
+    if (!buffer_allocator) return -EINVAL;
+    return buffer_allocator->Alloc(heap_name, len, heap_flags, legacy_align);
 }
 
 int DmabufSetName(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd, const char* name) {
@@ -52,17 +52,19 @@ int DmabufHeapAllocSystem2(BufferAllocator* buffer_allocator, bool cpu_access, s
     return buffer_allocator->AllocSystem(cpu_access, len, heap_flags);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
 int DmabufHeapAllocSystem(BufferAllocator* buffer_allocator, bool cpu_access, size_t len,
-                          unsigned int heap_flags, size_t) {
-    return DmabufHeapAllocSystem2(buffer_allocator, cpu_access, len, heap_flags);
+                          unsigned int heap_flags, size_t legacy_align) {
+    if (!buffer_allocator) return -EINVAL;
+    return buffer_allocator->AllocSystem(cpu_access, len, heap_flags, legacy_align);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
-int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char*, const char*,
-                               unsigned int, unsigned int, unsigned int) {
+int MapDmabufHeapNameToIonHeap(BufferAllocator* buffer_allocator, const char* heap_name,
+                               const char* ion_heap_name, unsigned int ion_heap_flags,
+                               unsigned int legacy_ion_heap_mask,
+                               unsigned int legacy_ion_heap_flags) {
     if (!buffer_allocator) return -EINVAL;
-    return 0;
+    return buffer_allocator->MapNameToIonHeap(heap_name, ion_heap_name, ion_heap_flags,
+                                              legacy_ion_heap_mask, legacy_ion_heap_flags);
 }
 
 int DmabufHeapCpuSyncStart2(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
@@ -71,11 +73,12 @@ int DmabufHeapCpuSyncStart2(BufferAllocator* buffer_allocator, unsigned int dmab
     return buffer_allocator->CpuSyncStart(dmabuf_fd, sync_type);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
 int DmabufHeapCpuSyncStart(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                           SyncType sync_type, int (*)(int, int, void *),
-                           void*) {
-    return DmabufHeapCpuSyncStart2(buffer_allocator, dmabuf_fd, sync_type);
+                           SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void *),
+                           void *custom_data) {
+    if (!buffer_allocator) return -EINVAL;
+    return buffer_allocator->CpuSyncStart(dmabuf_fd, sync_type, legacy_ion_cpu_sync,
+                                          custom_data);
 }
 
 int DmabufHeapCpuSyncEnd2(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
@@ -84,16 +87,15 @@ int DmabufHeapCpuSyncEnd2(BufferAllocator* buffer_allocator, unsigned int dmabuf
     return buffer_allocator->CpuSyncEnd(dmabuf_fd, sync_type);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
 int DmabufHeapCpuSyncEnd(BufferAllocator* buffer_allocator, unsigned int dmabuf_fd,
-                         SyncType sync_type, int (*)(int, int, void*),
-                         void*) {
-    return DmabufHeapCpuSyncEnd2(buffer_allocator, dmabuf_fd, sync_type);
+                         SyncType sync_type, int (*legacy_ion_cpu_sync)(int, int, void*),
+                         void* custom_data) {
+    if (!buffer_allocator) return -EINVAL;
+    return buffer_allocator->CpuSyncEnd(dmabuf_fd, sync_type, legacy_ion_cpu_sync, custom_data);
 }
 
-[[deprecated("ION is not supported. Retained for binary compatibility.")]]
 bool CheckIonSupport() {
-    return false;
+    return BufferAllocator::CheckIonSupport();
 }
 
 }

@@ -31,6 +31,7 @@ cc_defaults {
     ],
     shared_libs: [
         "libdmabufheap",
+        "libvintf",
     ],
     srcs: [
         "dmabuf_heap_test.cpp",
@@ -60,6 +61,7 @@ cc_test {
     name: "dmabufheaptest",
     srcs: ["dmabuf_heap_test.c"],
     static_libs: [
+        "libion",
         "libdmabufheap",
         "liblog",
         "libbase",
@@ -75,6 +77,7 @@ cc_test {
     name: "dmabuf-heap-bench",
     srcs: ["dmabuf_heap_bench.c"],
     static_libs: [
+        "libion",
         "liblog",
         "libbase",
     ],
