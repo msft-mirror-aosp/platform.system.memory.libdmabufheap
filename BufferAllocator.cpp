@@ -72,9 +72,10 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
 
     std::string heap_path = kDmaHeapRoot + heap_name;
     int fd = TEMP_FAILURE_RETRY(open(heap_path.c_str(), O_RDONLY | O_CLOEXEC));
-    if (fd < 0) return -errno;
-
-    LOG(INFO) << "Using DMA-BUF heap named: " << heap_name;
+    if (fd < 0) {
+        if (ion_fd_ < 0) PLOG(ERROR) << "Could not open DMA-BUF heap named: " << heap_name;
+        return -errno;
+    }
 
     auto ret = dmabuf_heap_fds_.insert({heap_name, android::base::unique_fd(fd)});
     CHECK(ret.second);
@@ -261,6 +262,13 @@ int BufferAllocator::IonAlloc(const std::string& heap_name, size_t len,
     return alloc_fd;
 }
 
+int BufferAllocator::Alloc(const std::string& heap_name, size_t len, unsigned int) {
+    int dma_buf_heap_fd = OpenDmabufHeap(heap_name);
+    if (dma_buf_heap_fd < 0) return -1;
+
+    return DmabufAlloc(heap_name, len, dma_buf_heap_fd);
+}
+
 int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
                            unsigned int heap_flags, size_t legacy_align) {
     int dma_buf_heap_fd = OpenDmabufHeap(heap_name);
@@ -268,9 +276,37 @@ int BufferAllocator::Alloc(const std::string& heap_name, size_t len,
 
     /*
      * Swap back to ion only if we failed to allocate for a dma-buffer heap
-     * that doesn't exist.
+     * that doesn't exist, and we have already detected ion support is present.
      */
-    return IonAlloc(heap_name, len, heap_flags, legacy_align);
+    if (ion_fd_ >= 0) return IonAlloc(heap_name, len, heap_flags, legacy_align);
+
+    return -1;
+}
+
+int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags) {
+    if (!cpu_access_needed) {
+        /*
+         * CPU does not need to access allocated buffer so we try to allocate in
+         * the 'system-uncached' heap after querying for its existence.
+         */
+        static bool uncached_dmabuf_system_heap_support = [this]() -> bool {
+            auto dmabuf_heap_list = this->GetDmabufHeapList();
+            return (dmabuf_heap_list.find(kDmabufSystemUncachedHeapName) != dmabuf_heap_list.end());
+        }();
+
+        if (uncached_dmabuf_system_heap_support) {
+            int dma_buf_heap_fd = OpenDmabufHeap(kDmabufSystemUncachedHeapName);
+            return (dma_buf_heap_fd < 0)
+                           ? dma_buf_heap_fd
+                           : DmabufAlloc(kDmabufSystemUncachedHeapName, len, dma_buf_heap_fd);
+        }
+    }
+
+    /*
+     * Either 1) CPU needs to access allocated buffer OR 2) CPU does not need to
+     * access allocated buffer but the "system-uncached" heap is unsupported.
+     */
+    return Alloc(kDmabufSystemHeapName, len, heap_flags);
 }
 
 int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned int heap_flags,
@@ -298,7 +334,7 @@ int BufferAllocator::AllocSystem(bool cpu_access_needed, size_t len, unsigned in
             return (ret == 0);
         }();
 
-        if (uncached_ion_system_heap_support)
+        if (ion_fd_ >= 0 && uncached_ion_system_heap_support)
             return IonAlloc(kDmabufSystemUncachedHeapName, len, heap_flags, legacy_align);
     }
 
@@ -343,6 +379,13 @@ int BufferAllocator::DoSync(unsigned int dmabuf_fd, bool start, SyncType sync_ty
     return TEMP_FAILURE_RETRY(ioctl(dmabuf_fd, DMA_BUF_IOCTL_SYNC, &sync));
 }
 
+int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type) {
+    int ret = DoSync(dmabuf_fd, true, sync_type, nullptr, nullptr);
+    if (ret) PLOG(ERROR) << "CpuSyncStart() failure";
+
+    return ret;
+}
+
 int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
                                   const CustomCpuSyncLegacyIon& legacy_ion_cpu_sync_custom,
                                   void *legacy_ion_custom_data) {
@@ -350,6 +393,13 @@ int BufferAllocator::CpuSyncStart(unsigned int dmabuf_fd, SyncType sync_type,
                      legacy_ion_custom_data);
 
     if (ret) PLOG(ERROR) << "CpuSyncStart() failure";
+    return ret;
+}
+
+int BufferAllocator::CpuSyncEnd(unsigned int dmabuf_fd, SyncType sync_type) {
+    int ret = DoSync(dmabuf_fd, false, sync_type, nullptr, nullptr);
+    if (ret) PLOG(ERROR) << "CpuSyncEnd() failure";
+
     return ret;
 }
 
