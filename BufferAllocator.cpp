@@ -71,9 +71,11 @@ int BufferAllocator::OpenDmabufHeap(const std::string& heap_name) {
     return fd;
 }
 
-// Need to keep this empty instead of defaulting to retain the symbol for GRF
-BufferAllocator::BufferAllocator() {
-}
+// Need to retain the symbol for GRF
+BufferAllocator::BufferAllocator() = default;
+
+// User-provided and defaulted in the implementation so the compiler will not inline it
+BufferAllocator::~BufferAllocator() = default;
 
 [[deprecated("ION support is removed. Retained for binary compatibility.")]]
 int BufferAllocator::MapNameToIonHeap(const std::string&, const std::string&, unsigned int,

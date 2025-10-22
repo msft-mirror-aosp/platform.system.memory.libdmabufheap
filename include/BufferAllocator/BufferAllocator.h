@@ -33,7 +33,7 @@
 class BufferAllocator {
   public:
     BufferAllocator();
-    ~BufferAllocator() {}
+    ~BufferAllocator();
 
     /* Not copyable or movable */
     BufferAllocator(const BufferAllocator&) = delete;
