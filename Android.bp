@@ -47,13 +47,11 @@ cc_library {
     ],
     static_libs: [
         "libbase",
-        "libion",
     ],
     shared_libs: [
         "liblog",
     ],
     export_static_lib_headers: [
         "libbase",
-        "libion",
     ],
 }
