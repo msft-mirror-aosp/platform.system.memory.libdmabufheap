@@ -1,0 +1,67 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_team: "trendy_team_android_kernel",
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+cc_library_static {
+    name: "libdma_heap_config_proto",
+    host_supported: true,
+    srcs: [
+        "schema.proto",
+    ],
+    proto: {
+        type: "full",
+        export_proto_headers: true,
+    },
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-parameter",
+    ],
+}
+
+// Tests that the config files follow the schema.
+cc_test {
+    name: "vts_dma_heap_config_test",
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-parameter",
+    ],
+    srcs: [
+        "test.cpp",
+    ],
+    static_libs: [
+        "libdma_heap_config_proto",
+        "libjsoncpp",
+        "libjsonpbverify",
+    ],
+    shared_libs: [
+        "libbase",
+        "libbinder",
+        "libbinder_ndk",
+        "liblog",
+        "libprotobuf-cpp-full",
+        "libutils",
+        "packagemanager_aidl-cpp",
+    ],
+    test_suites: [
+        "vts",
+        "general-tests",
+    ],
+    require_root: true,
+}
