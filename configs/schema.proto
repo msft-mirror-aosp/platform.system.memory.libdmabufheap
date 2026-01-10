@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package android.os.dma_heap;
+
+// Compatibility matrices for all dma heaps.
+// See example.json for an example.
+//
+// Next ID: 2
+message DmaHeapsInfo {
+  // Key: path to the dma heap, e.g. /dev/dma_heap/system
+  // Value: Compatibility matrices for this heap.
+  map<string, DmaHeapInfo> devices = 1;
+}
+
+// Compatibility matrices for a single dma heap.
+// Next ID: 2
+message DmaHeapInfo {
+  repeated NpuCompatibility npu = 1;
+}
+
+// Compatibility matrix of the heap with the NPUs. This is a repeated field in
+// DmaHeapInfo.
+//
+// Example 1: [{device_numbers: [0],
+//              buffer_types: [MODEL_EXECUTABLE, MODEL_WEIGHTS]}]
+//     This means the heap can be used to allocate
+//     MODEL_EXECUTABLE or MODEL_WEIGHTS buffers for NPU 0.
+//
+// Example 2: [{device_numbers: [0],    buffer_types: [MODEL_EXECUTABLE]},
+//             {device_numbers: [1, 2], buffer_types: [CACHE]}]
+//     This means the heap can be used to allocate:
+//       - MODEL_EXECUTABLE buffers for NPU 0
+//       - CACHE buffers for NPU 1
+//       - CACHE buffers for NPU 2
+// Next ID: 3
+message NpuCompatibility {
+  // An identifier for the NPU that is involved with the work. The first device
+  // must be 0, and subsequent NPUs (if any) increase serially from there (0, 1,
+  // 2, etc.).
+  // See android.hardware.npu.WorkInfo#deviceNumber for details.
+  repeated int32 device_numbers = 1 [json_name = "device_numbers"];
+
+  // What the buffer is purposed for.
+  repeated BufferType buffer_types = 2 [json_name = "buffer_types"];
+
+  // Note: New requirements should have sensical default values to ensure
+  // backwards compatibility with older devices.
+}
+
+// Next ID: 4
+enum BufferType {
+  MODEL_EXECUTABLE = 0;
+  MODEL_WEIGHTS = 1;
+  CACHE = 2;
+  AUXILIARY = 3;
+}
