@@ -63,10 +63,11 @@ message NpuCompatibility {
   // backwards compatibility with older devices.
 }
 
-// Next ID: 4
+// Next ID: 5
 enum BufferType {
-  MODEL_EXECUTABLE = 0;
-  MODEL_WEIGHTS = 1;
-  CACHE = 2;
-  AUXILIARY = 3;
+  UNKNOWN = 0;
+  MODEL_EXECUTABLE = 1;
+  MODEL_WEIGHTS = 2;
+  CACHE = 3;
+  AUXILIARY = 4;
 }
