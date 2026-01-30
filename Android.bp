@@ -19,17 +19,17 @@ package {
 }
 
 cc_library {
-   srcs: [
+    srcs: [
         "BufferAllocator.cpp",
         "BufferAllocatorWrapper.cpp",
-     ],
+    ],
     name: "libdmabufheap",
     recovery_available: true,
     vendor_available: true,
 
     // Added because codec2 is double_loadable.
     // See b/147147883, b/147147992
-    double_loadable:true,
+    double_loadable: true,
     apex_available: [
         "//apex_available:platform",
         "//apex_available:anyapex",
@@ -53,5 +53,30 @@ cc_library {
     ],
     export_static_lib_headers: [
         "libbase",
+    ],
+}
+
+rust_bindgen {
+    name: "libdmabufheap_bindings",
+    wrapper_src: "include/BufferAllocator/BufferAllocatorWrapper.h",
+    crate_name: "dmabufheap_bindings",
+    source_stem: "bindings",
+    local_include_dirs: ["include"],
+    bindgen_flags: [
+        "--allowlist-function=CreateDmabufHeapBufferAllocator",
+        "--allowlist-function=FreeDmabufHeapBufferAllocator",
+        "--allowlist-function=DmabufHeapAlloc2",
+        "--allowlist-function=DmabufSetName",
+        "--allowlist-function=DmabufHeapAllocSystem2",
+        "--allowlist-function=DmabufHeapCpuSyncStart2",
+        "--allowlist-function=DmabufHeapCpuSyncEnd2",
+        "--allowlist-var=kDmabufSystemHeapName",
+        "--allowlist-var=kDmabufSystemUncachedHeapName",
+        "--allowlist-type=BufferAllocator",
+        "--allowlist-type=SyncType",
+    ],
+    min_sdk_version: "36",
+    apex_available: [
+        "com.android.npumanager",
     ],
 }
