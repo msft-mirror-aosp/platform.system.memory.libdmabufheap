@@ -34,6 +34,28 @@ cc_library_static {
     ],
 }
 
+rust_protobuf {
+    name: "libdma_heap_config_proto_rust",
+    crate_name: "dma_heap_config_proto",
+    protos: ["schema.proto"],
+    source_stem: "dma_heap_config_proto",
+    apex_available: ["com.android.npumanager"],
+    min_sdk_version: "36",
+}
+
+rust_library {
+    name: "libdma_heap_config_rust",
+    crate_name: "dma_heap_config",
+    srcs: ["lib.rs"],
+    rustlibs: [
+        "libdma_heap_config_proto_rust",
+        "liblog_rust",
+        "libprotobuf_json_mapping",
+    ],
+    apex_available: ["com.android.npumanager"],
+    min_sdk_version: "apex_inherit",
+}
+
 // Tests that the config files follow the schema.
 cc_test {
     name: "vts_dma_heap_config_test",
